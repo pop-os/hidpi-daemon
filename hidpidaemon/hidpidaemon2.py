@@ -93,7 +93,7 @@ if major < 0 or minor < 20:
     randr.create_mode = xlib._create_mode
 
     randr.AddOutputMode = xlib._AddOutputMode
-    randr._add_output_mode = xlib._add_output_mode
+    randr.add_output_mode = xlib._add_output_mode
 
     randr.SetCrtcConfig = xlib._SetCrtcConfig
     randr.set_crtc_config = xlib._set_crtc_config
