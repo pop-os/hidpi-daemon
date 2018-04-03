@@ -413,10 +413,10 @@ class HiDPIAutoscaling:
     def notification_update_scaling(self, restart=True):
         if self.queue is not None:
             if self.get_gpu_vendor() == 'nvidia':
-                if self.scale_mode == 'hidpi':
-                    self.scale_mode = 'lowdpi'
-                else:
+                if self.settings.get_string('mode') == 'hidpi':
                     self.scale_mode = 'hidpi'
+                else:
+                    self.scale_mode = 'lowdpi'
             else:
                 if self.settings.get_string('mode') == 'lodpi':
                     self.unforce = False
