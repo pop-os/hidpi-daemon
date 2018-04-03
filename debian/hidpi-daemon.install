@@ -1,0 +1,5 @@
+hidpi-daemon usr/lib/hidpi-daemon
+hidpi-notification usr/lib/hidpi-daemon/
+hidpi-daemon.desktop /etc/xdg/autostart/
+hidpi-frontend.desktop /etc/xdg/autostart/
+com.system76.hidpi.gschema.xml /usr/share/glib-2.0/schemas/

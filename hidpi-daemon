@@ -1,0 +1,82 @@
+#!/usr/bin/python3
+
+# hidpi-daemon: HiDPI daemon to manage HiDPI and LoDPI monitors on X
+# Copyright (C) 2017-2018 System76, Inc.
+#
+# This file is part of `hidpi-daemon`.
+#
+# `hidpi-daemon` is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# `hidpi-daemon` is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with `hidpi-daemon`; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+"""
+HiDPI daemon to manage HiDPI and LoDPI monitors on X.
+"""
+
+import time
+start_time = time.monotonic()
+import argparse
+import os
+import sys
+import logging
+
+from gi.repository import GLib
+
+
+from gi.repository import GObject
+
+import hidpidaemon
+from hidpidaemon import hidpidaemon2
+
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    style='{',
+    format='{asctime}  {levelname}  {message}',
+)
+log = logging.getLogger()
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--model', help='force model rather than detecting it')
+parser.add_argument('--debug', action='store_true', default=False,
+    help='print loaded modules',
+)
+args = parser.parse_args()
+
+if os.getuid() == 0:
+    sys.exit('Error: system76-hidpi-daemon must be run as user')
+log.info('**** Process start at monotonic time %r', start_time)
+
+desktop_session = os.environ.get('XDG_CURRENT_DESKTOP')
+if 'GNOME' not in desktop_session:
+    sys.exit('Error: system76-hidpi-daemon requires a GNOME-based desktop environment.  Stopping...')
+
+session_type = os.environ.get('XDG_SESSION_TYPE')
+if 'x11' not in session_type:
+    sys.exit('Error: system76-hidpi-daemon must be run on an X11 session.  Stopping...')
+
+if not args.model:
+    args.model = (hidpidaemon.get_product_version())
+log.info('model: %r', args.model)
+
+disable = "False"
+
+GObject.threads_init()
+if disable != "True":
+    restart_count = 0
+    while restart_count < 100:
+        try:
+            hidpi = hidpidaemon2.run_hidpi_autoscaling(args.model)
+        except:
+            os.execv(__file__, sys.argv)
+        restart_count = restart_count + 1

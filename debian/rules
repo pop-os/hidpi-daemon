@@ -1,0 +1,32 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --with=python3,systemd --buildsystem=pybuild
+
+override_dh_auto_clean:
+	set -ex; for python in $(shell py3versions -r); do \
+		$$python setup.py clean; \
+	done
+
+override_dh_auto_build:
+	set -ex; for python in $(shell py3versions -r); do \
+		$$python setup.py build \
+				--executable=/usr/bin/python3; \
+	done
+
+override_dh_auto_test:
+	set -ex; for python in $(shell py3versions -r); do \
+	    LC_ALL=C.UTF-8 $$python setup.py test ; \
+	done
+
+override_dh_auto_install:
+	echo $(CURDIR)
+	set -ex; for python in $(shell py3versions -r); do \
+		$$python setup.py install \
+				--install-layout=deb \
+				--root=$(CURDIR)/debian/hidpi-daemon; \
+	done
+	mkdir -p $(CURDIR)/debian/hidpi-daemon/var/lib/hidpi-daemon
+
+override_dh_installgsettings:
+	dh_installgsettings --priority=40
