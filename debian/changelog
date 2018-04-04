@@ -1,5 +1,6 @@
-hidpi-daemon (17.10.1-1) artful; urgency=medium
+hidpi-daemon (17.10.0~alpha) artful; urgency=medium
 
-  * Initial release
+    * Daily WIP for 17.10.0
+    * Initial release
 
  -- David Jordan <david2@system76.com>  Mon, 26 Mar 2018 15:17:23 -0600
