@@ -1,6 +1,5 @@
-hidpi-daemon (17.10.0~alpha) artful; urgency=low
+hidpi-daemon (17.10.0) artful; urgency=low
 
-  * Daily WIP for 17.10.0
   * Initial release
 
- -- David Jordan <david2@system76.com>  Wed, 04 Apr 2018 16:02:32 -0600
+ -- David Jordan <david2@system76.com>  Wed, 04 Apr 2018 16:12:48 -0600
