@@ -1,10 +1,9 @@
-hidpi-daemon (17.10.1~~alpha) artful; urgency=low
+hidpi-daemon (17.10.1) artful; urgency=low
 
-  * Daily WIP for 17.10.1
   * Use deprecated method to disable
   * Never set display modes when disabled via gsetting
 
- -- David Jordan <david2@system76.com>  Mon, 09 Apr 2018 10:25:44 -0600
+ -- David Jordan <david2@system76.com>  Mon, 09 Apr 2018 12:00:22 -0600
 
 hidpi-daemon (17.10.0) artful; urgency=low
 
