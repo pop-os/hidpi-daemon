@@ -1228,6 +1228,10 @@ class HiDPIAutoscaling:
         return has_mixed_dpi, found_hidpi, found_lowdpi
     
     def set_scaled_display_modes(self, notification=True):
+        # Don't set resolutions at all if disabled to prevent issues.
+        if self.settings.get_boolean('enable') == False:
+                return
+        
         self.displays_xml = self.get_displays_xml()
         layout = self.calculate_layout2(revert=self.unforce)
         
