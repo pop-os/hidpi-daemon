@@ -38,7 +38,15 @@ from gi.repository import GObject
 import hidpidaemon
 from hidpidaemon import hidpidaemon2
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    style='{',
+    format='{asctime}  {levelname}  {message}',
+)
+log = logging.getLogger()
 
+
+import json
 def load_json_conf(filename):
     try:
         fp = open(filename, 'r')
@@ -54,13 +62,6 @@ def load_json_conf(filename):
     log.warning('does not contain JSON dict: %r', filename)
     return {}
 
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    style='{',
-    format='{asctime}  {levelname}  {message}',
-)
-log = logging.getLogger()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', help='force model rather than detecting it')
