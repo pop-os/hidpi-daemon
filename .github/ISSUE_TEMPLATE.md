@@ -1,6 +1,9 @@
 If this is a bug, please use the template below. If this is a question, or a general discussion topic - please start a conversation in our chat https://chat.pop-os.org/ or post on our subreddit https://reddit.com/r/pop_os - as these are the proper forums for those types of posts.
 
 
+**IMPORTANT**
+Please attach output of the xrandr command and ~.config/montors.xml to help diagnose the issue.
+
 
  **Distribution - (run ```cat /etc/os-release```)**
  
