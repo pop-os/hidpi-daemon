@@ -1,3 +1,9 @@
+hidpi-daemon (17.10.2~~alpha) artful; urgency=low
+
+  * Daily WIP for 17.10.2
+
+ -- David Jordan <david2@system76.com>  Thu, 12 Apr 2018 14:16:15 -0600
+
 hidpi-daemon (17.10.1) artful; urgency=low
 
   * Use deprecated method to disable
