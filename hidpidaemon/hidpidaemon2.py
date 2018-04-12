@@ -169,9 +169,9 @@ class HiDPIAutoscaling:
         self.xlib_display = xdisplay.Display()
         screen = self.xlib_display.screen()
         self.xlib_window = screen.root.create_window(10,10,10,10,0, 0, window_class=X.InputOnly, visual=X.CopyFromParent, event_mask=0)
-        self.xlib_window.xrandr_select_input(randr.RRScreenChangeNotifyMask
-                    | randr.RROutputChangeNotifyMask
-                    | randr.RROutputPropertyNotifyMask)
+        self.xlib_window.xrandr_select_input(randr.RRScreenChangeNotifyMask)
+        #            | randr.RROutputChangeNotifyMask
+        #            | randr.RROutputPropertyNotifyMask)
                     
         self.update_display_connections()
         if self.get_gpu_vendor() == 'nvidia':
@@ -1245,11 +1245,15 @@ class HiDPIAutoscaling:
         
         # For each connected display, configure display modes.
         cmd = ''
+        off_displays = []
         for display in self.displays:
             if self.displays[display]['connected'] == True:
                 # INTEL: set the display crtc
                 # NVIDIA: just get display parameters for nvidia-settings line
-                cmd = cmd + self.set_display_scaling(display, layout, force=force)
+                if self.displays[display]['crtc'] == 0:
+                    off_displays.append(display)
+                else:
+                    cmd = cmd + self.set_display_scaling(display, layout, force=force)
         # NVIDIA: got parameters for nvidia-settings - actually set display modes
         if self.get_gpu_vendor() == 'nvidia':
             if has_hidpi:
@@ -1361,6 +1365,11 @@ class HiDPIAutoscaling:
                                 log.info("Could not set Mutter scale for workaround.")
                 else:
                     subprocess.call('xrandr --output eDP-1 --off', shell=True)
+            
+            # Setting the other displays' modes with xlib will also activate previously disabled displays.
+            # We need to turn them off manually.  Using xrandr since I haven't found a better method.
+            for off_display in off_displays:
+                subprocess.call(['xrandr', '--output', off_display, '--off'])
         
         # Displays are all setup - Notify the user!
         self.prev_display_types = (has_mixed_dpi, has_hidpi, has_lowdpi)
