@@ -1,3 +1,9 @@
+hidpi-daemon (17.10.3~~alpha) artful; urgency=low
+
+  * Daily WIP for 17.10.3
+
+ -- David Jordan <david2@system76.com>  Mon, 16 Apr 2018 13:32:41 -0600
+
 hidpi-daemon (17.10.2) artful; urgency=low
 
   * Projector toggle can now be set to use internal/external displays only
