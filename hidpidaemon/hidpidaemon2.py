@@ -1181,6 +1181,9 @@ class HiDPIAutoscaling:
         # NVIDIA 390 introduces an issue where a Shell/Mutter crash happens on lid close
         # when two lowdpi external monitors are connected and hidpi mode is active.
         # Until this is resolved, switch to lowdpi mode by default when second display is connected.
+        
+        # Also, gnome-control-center cannot re-enable lodpi external monitor when in hidpi-mode.
+        # By default set lodpi mode when at least one display is connected.
         lowdpi_count = 0
         has_internal_panel = False
         for display in self.displays:
@@ -1202,7 +1205,7 @@ class HiDPIAutoscaling:
         except:
             self.prev_nvidia_390_count = 0
         
-        if has_internal_panel and lowdpi_count >= 2 and prev_nvidia_390_count != lowdpi_count:
+        if has_internal_panel and lowdpi_count >= 1 and prev_nvidia_390_count != lowdpi_count:
             if self.scale_mode == 'hidpi':
                 self.scale_mode = 'lowdpi'
         
