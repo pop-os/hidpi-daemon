@@ -1230,19 +1230,14 @@ class HiDPIAutoscaling:
                     subprocess.call('xrandr -s 0', shell=True)
                     self.update_display_connections()
                     
-                    has_hidpi = 0
-                    has_lowdpi = 0
+                    has_hidpi = False
                     for display in self.displays:
                         if self.displays[display]['connected'] == True and self.displays[display]['crtc'] != 0:
                             dpi = self.get_display_dpi(display)
                             if dpi == None:
                                 pass
-                            elif 'eDP' in display or self.displays[display]['connector_type'] == 'Panel':
-                                has_internal_panel = True
                             elif dpi > 170:
                                 has_hidpi = True
-                            else:
-                                has_lowdpi = True
                     if has_hidpi and self.scale_mode == 'lowdpi':
                         if dbusutil.get_scale() > 1:
                             try:
