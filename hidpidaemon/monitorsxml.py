@@ -120,9 +120,12 @@ class MonitorsXml():
             if tag == 'monitors':
                 self.monitors = []
             if tag == 'configuration':
-                self.configuration = {'logical_monitors': []}
+                self.configuration = {'logical_monitors': [], 'disabled': []}
             if tag == 'logicalmonitor':
                 self.logical_monitor = {'monitor_spec': {}, 'mode': {}}
+            if tag == 'disabled':
+                self.disabled = {'monitor_spec': {}}
+                self.logical_monitor = {'monitor_spec': {}}
             if tag == 'monitorspec':
                 self.monitor_spec = {}
             if tag == 'mode':
@@ -133,6 +136,9 @@ class MonitorsXml():
                 self.monitors.append(self.configuration)
             if tag == 'logicalmonitor':
                 self.configuration['logical_monitors'].append(self.logical_monitor)
+            if tag == 'disabled':
+                self.configuration['disabled'].append(self.logical_monitor)
+                self.configuration['logical_monitors'].append(self.logical_monitor)
             if tag == 'monitorspec':
                 self.logical_monitor['monitor_spec'] = self.monitor_spec
             if tag == 'mode':
@@ -141,6 +147,8 @@ class MonitorsXml():
             state = self.state.pop()
             self.state.append(state)
             if state == 'logicalmonitor':
+                self.logical_monitor[tag] = contents
+            elif state == 'disabled':
                 self.logical_monitor[tag] = contents
             elif state == 'monitorspec':
                 self.monitor_spec[tag] = contents
