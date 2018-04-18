@@ -1,9 +1,8 @@
-hidpi-daemon (17.10.3~~alpha) artful; urgency=low
+hidpi-daemon (17.10.3) artful; urgency=low
 
-  * Daily WIP for 17.10.3
   * Workaround: Mutter disables external lowdpi on NVIDIA when in hidpi mode.
 
- -- David Jordan <david2@system76.com>  Mon, 16 Apr 2018 13:32:41 -0600
+ -- David Jordan <david2@system76.com>  Wed, 18 Apr 2018 12:23:32 -0600
 
 hidpi-daemon (17.10.2) artful; urgency=low
 
