@@ -1,3 +1,9 @@
+hidpi-daemon (18.04.0~~alpha) bionic; urgency=low
+
+  * Daily WIP for 18.04.0
+
+ -- David Jordan <david@david-Serval-WS>  Thu, 26 Apr 2018 14:27:06 -0600
+
 hidpi-daemon (17.10.3) artful; urgency=low
 
   * Workaround: Mutter disables external lowdpi on NVIDIA when in hidpi mode.
