@@ -1,0 +1,5 @@
+#!/bin/sh -e
+
+if [ -f /usr/share/glib-2.0/schemas/50_nvidia_390_hidpi.gschema.override ]; then
+    rm /usr/share/glib-2.0/schemas/50_nvidia_390_hidpi.gschema.override
+fi

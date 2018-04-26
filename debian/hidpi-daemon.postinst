@@ -1,0 +1,8 @@
+#!/bin/sh -e
+
+if [ -f /usr/bin/nvidia-settings ]; then
+    cat <<EOF > /usr/share/glib-2.0/schemas/50_nvidia_390_hidpi.gschema.override
+[com.system76.hidpi]
+enable = false
+EOF
+fi
