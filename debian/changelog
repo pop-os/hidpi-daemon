@@ -1,9 +1,8 @@
-hidpi-daemon (18.04.0~~alpha) bionic; urgency=low
+hidpi-daemon (18.04.0) bionic; urgency=low
 
-  * Daily WIP for 18.04.0
   * Disable on NVIDIA graphics by default using gschema override
 
- -- David Jordan <david@david-Serval-WS>  Thu, 26 Apr 2018 14:27:06 -0600
+ -- David Jordan <david2@system76.com>  Thu, 26 Apr 2018 14:35:00 -0600
 
 hidpi-daemon (17.10.3) artful; urgency=low
 
