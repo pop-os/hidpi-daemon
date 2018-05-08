@@ -1,6 +1,7 @@
 hidpi-daemon (18.04.1~~alpha) bionic; urgency=low
 
   * Daily WIP for 18.04.1
+  * Bump for rebuild
 
  -- Jeremy Soller <jeremy@system76.com>  Tue, 08 May 2018 16:28:12 -0600
 
