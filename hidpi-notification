@@ -42,8 +42,27 @@ from pydbus import SessionBus
 
 def notification_closed(arg):
     global bus
-    obj = bus.get('com.system76.hidpi')
-    args = obj.getstate()
+    global subscription
+    if subscription is not None:
+        obj = bus.get('com.system76.hidpi')
+        args = obj.getstate()
+
+def subscribe(arg):
+    global bus
+    global subscription
+    subscription = bus.subscribe(iface='com.system76.hidpi',
+                   signal='state',
+                   object='/com/system76/hidpi',
+                   signal_fired=signal_received)
+    GLib.idle_add(notification_closed, None)
+
+def unsubscribe():
+    global subscription
+    if subscription is not None:
+        subscription.unsubscribe()
+
+def settings_changed(settings, key):
+    notification_closed(None)
 
 class HiDPINotification:
     def __init__(self, mode):
@@ -72,22 +91,32 @@ class HiDPINotification:
             message = "Select to set HiDPI for crisper display."
             action = "Switch to HiDPI"
         
-        self.notification = Notify.Notification.new(header, message, "preferences-desktop-display")
-        self.handler_id = self.notification.connect("closed", notification_closed)
-        self.notification.add_action("default", action, self.notification_action)
-        self.notification.show()
-        
+        self.settings = Gio.Settings('com.system76.hidpi')
+        self.settings.connect('changed', self.settings_changed)
+        if self.settings.get_boolean('enable'):
+            self.notification = Notify.Notification.new(header, message, "preferences-desktop-display")
+            self.handler_id = self.notification.connect("closed", notification_closed)
+            self.notification.add_action("default", action, self.notification_action)
+            self.notification.show()
+        else:
+            self.notification = None
+            
         GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGTERM, self.exit)
         
-        self.settings = Gio.Settings('com.system76.hidpi')
-        
     def terminate(self):
-        self.notification.disconnect(self.handler_id)
-        self.notification.close()
+        if self.notification is not None:
+            self.notification.disconnect(self.handler_id)
+            self.notification.close()
+            self.notification = None
         
     def exit(self):
         self.terminate()
         os._exit(0)
+    
+    def settings_changed(self, settings, key):
+        if self.notification is not None:
+            if not self.settings.get_boolean('enable'):
+                self.terminate()
     
     def notification_action(self, notification, action=None, data=None):
         if self.mode == 'lodpi' or self.mode == 'optimized':
@@ -100,7 +129,7 @@ def signal_received(num, object, iface, signal, args):
     global notification
     
     if signal == 'state':
-        if notification != None:
+        if notification is not None:
             notification.terminate()
         if 'mixed' not in args[1] and 'hidpi' not in args[1]:
             return
@@ -108,12 +137,12 @@ def signal_received(num, object, iface, signal, args):
             if 'mixed' in args[1] and 'pixel-doubling' not in args[2]:
                 notification = HiDPINotification('native')
             else:
-                 notification = HiDPINotification('hidpi')
+                notification = HiDPINotification('hidpi')
         else:
             if 'mixed' in args[1] and 'pixel-doubling' not in args[2]:
-                 notification = HiDPINotification('optimized')
+                notification = HiDPINotification('optimized')
             else:
-                 notification = HiDPINotification('lodpi')
+                notification = HiDPINotification('lodpi')
 
 
 logging.basicConfig(
@@ -133,16 +162,17 @@ if 'x11' not in session_type:
 
 
 notification = None
+subscription = None
 
 desktop_session = os.environ.get('XDG_CURRENT_DESKTOP')
 if 'GNOME' in desktop_session:
     bus = SessionBus()
-    bus.subscribe(iface='com.system76.hidpi',
-                   signal='state',
-                   object='/com/system76/hidpi',
-                   signal_fired=signal_received)
+    bus.watch_name('com.system76.hidpi', name_appeared=subscribe, name_vanished=unsubscribe)
+    
+    settings = Gio.Settings('com.system76.hidpi')
+    settings.connect('changed', settings_changed)
+    
     loop = GLib.MainLoop()
-    GLib.idle_add(notification_closed, None)
     loop.run()
 else:
     sys.exit('Error: system76-hidpi-notification requires a GNOME-based desktop environment.  Stopping...')
