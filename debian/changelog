@@ -1,10 +1,9 @@
-hidpi-daemon (18.04.2~~alpha) bionic; urgency=low
+hidpi-daemon (18.04.2) bionic; urgency=low
 
-  * Daily WIP for 18.04.2
   * Disable notifications when daemon is disabled.
   * hidpi-notification now makes sure dbus interface actually exists.
 
- -- David Jordan <david2@system76.com>  Thu, 10 May 2018 12:31:36 -0600
+ -- David Jordan <david2@system76.com>  Thu, 10 May 2018 13:21:21 -0600
 
 hidpi-daemon (18.04.1) bionic; urgency=low
 
