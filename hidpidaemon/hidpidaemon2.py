@@ -147,7 +147,7 @@ class HiDPIAutoscaling:
         self.displays = dict() # {'LVDS-0': 'connected', 'HDMI-0': 'disconnected'}
         self.screen_maximum = XRes(x=8192, y=8192)
         self.pixel_doubling = False 
-        self.scale_mode = 'lowdpi' # If we have nvidia with the proprietary driver, set to hidpi for pixel doubling
+        self.scale_mode = 'hidpi' # If we have nvidia with the proprietary driver, set to hidpi for pixel doubling
         self.notification = None
         self.queue = queue.Queue()
         self.unforce = False
@@ -186,7 +186,8 @@ class HiDPIAutoscaling:
     def get_gpu_vendor(self):
         if self.model in INTEL:
             return 'intel'
-        if which('nvidia-settings') is not None:
+        modules = open('/proc/modules', 'r')
+        if 'nvidia ' in modules.read() and which('nvidia-settings') is not None:
             return 'nvidia'
         else:
             return 'intel'
@@ -285,35 +286,7 @@ class HiDPIAutoscaling:
         xml = monitorsxml.MonitorsXml()
         c = xml.get_config_from_monitors(mon_list)
         return c
-        
     
-    def workaround_nvidia_check_updates(self):
-        resources = self.xlib_window.xrandr_get_screen_resources()._data
-        
-        new_displays = dict()
-        for output in resources['outputs']:
-            info = randr.get_output_info(self.xlib_display, output, resources['config_timestamp'])._data
-            
-            new_displays[info['name']] = dict()
-            new_displays[info['name']]['connected'] = not bool(info['connection'])
-            new_displays[info['name']]['crtc'] = info['crtc']
-            
-        for display in new_displays:
-            status = new_displays[display]['connected']
-            if display in self.displays:
-                old_status = self.displays[display]['connected']
-                if status != old_status:
-                    return (True, True)
-        
-        for display in new_displays:
-                new_crtc = new_displays[display]['crtc']
-                old_crtc = self.displays[display]['crtc']
-                if new_crtc != old_crtc:
-                    if new_crtc == 0 or old_crtc == 0:
-                        self.displays = new_displays
-                        return (False, True)
-        
-        return (False, False)
     
     def update_display_connections(self):
         resources = self.xlib_window.xrandr_get_screen_resources()._data
@@ -346,6 +319,8 @@ class HiDPIAutoscaling:
                     prop = randr.get_output_property(self.xlib_display, output, atom, 4, 0, 100)._data
                     connector_type = self.xlib_display.get_atom_name(prop['value'][0])
                     new_displays[info['name']]['connector_type'] = connector_type
+                if atom_name == 'PRIME Synchronization':
+                    new_displays[info['name']]['prime'] = True
         
         
         # In some cases, the CRTC won't have changed when the lid opens.
@@ -781,6 +756,8 @@ class HiDPIAutoscaling:
         display_positions = dict()
         display_scales = dict()
         
+        has_lowdpi_prime = self.has_lowdpi_prime_displays()
+        
         # Calculate display scales
         for display in self.displays:
             display_left, display_top = self.get_display_position(display, align=(0,0))
@@ -807,7 +784,17 @@ class HiDPIAutoscaling:
                 
             if self.scale_mode == 'hidpi' and revert == False:
                 scale_factor = scale_factor / 2
-                
+                if dpi is None:
+                    pass
+                elif dpi <= 170:
+                    if 'prime' in self.displays[display]:
+                        scale_factor = scale_factor * 2
+                    elif has_lowdpi_prime:
+                        scale_factor = scale_factor * 2
+            
+            #if self.scale_mode == 'hidpi' and 'prime' in self.displays[display] and dpi > 170:
+            #    scale_factor = scale_factor / 2
+            
             display_scales[display] = scale_factor
         
         # Generate graph of adjacent displays.
@@ -1054,7 +1041,7 @@ class HiDPIAutoscaling:
         return attribute_mapping[display_name]
 
 
-    def set_display_scaling_nvidia_settings(self, display_name, layout):
+    def set_display_scaling_nvidia_settings(self, display_name, layout, scale_mode):
         #DP-0: nvidia-auto-select @3840x2160 +0+0 {ViewPortIn=3840x2160, ViewPortOut=3840x2160+0+0, ForceCompositionPipeline=On}
         #DISPLAY_NAME
         #nvidia-auto-select
@@ -1077,7 +1064,10 @@ class HiDPIAutoscaling:
         res_out_x = mode['width']
         res_out_y = mode['height']
         
-        if self.scale_mode == 'hidpi':
+        if scale_mode == 'lowdpi_prime':
+            res_in_x = mode['width']
+            res_in_y = mode['height']
+        elif scale_mode == 'hidpi':
             if dpi > 170:
                 res_in_x = mode['width']
                 res_in_y = mode['height']
@@ -1203,94 +1193,37 @@ class HiDPIAutoscaling:
         
         return ''
     
-    def set_display_scaling(self, display, layout, force=False):
+    def set_display_scaling(self, display, layout, force=False, lowdpi_prime=False):
         if self.displays[display]['modes'] == []:
             return ''
         if self.get_gpu_vendor() == 'nvidia':
-            return self.set_display_scaling_nvidia_settings(display, layout)
+            if 'prime' in self.displays[display]:
+                return self.set_display_scaling_xrandr(display, layout, force_lowdpi=force)
+            else:
+                # If a lowdpi prime display is present, don't pixel-double any lowdpi displays.
+                if lowdpi_prime and self.scale_mode == 'hidpi':
+                    mode = 'lowdpi_prime'
+                else:
+                    mode = self.scale_mode
+                return self.set_display_scaling_nvidia_settings(display, layout, scale_mode=mode)
         elif self.get_gpu_vendor() == 'intel':
             return self.set_display_scaling_xrandr(display, layout, force_lowdpi=force)
     
-    def workaround_nvidia_off_displays(self):
-        running = True
-        xrandr_monitors = subprocess.check_output(['xrandr', '--listactivemonitors'])
-        while(running):
-            time.sleep(3)
-            old_xrandr_monitors = xrandr_monitors
-            xrandr_monitors = subprocess.check_output(['xrandr']).decode().split('/n')
-            if xrandr_monitors != old_xrandr_monitors:
-                set_scale_modes, fix_xorg = self.workaround_nvidia_check_updates()
-                if set_scale_modes:
-                    self.update_display_connections()
-                    self.workaround_nvidia_390()
-                    
-                    if self.settings.get_boolean('enable') == True:
-                        self.set_scaled_display_modes()
-                elif fix_xorg:
-                    subprocess.call('xrandr -s 0', shell=True)
-                    self.update_display_connections()
-                    
-                    has_hidpi = False
-                    for display in self.displays:
-                        if self.displays[display]['connected'] == True and self.displays[display]['crtc'] != 0:
-                            dpi = self.get_display_dpi(display)
-                            if dpi == None:
-                                pass
-                            elif dpi > 170:
-                                has_hidpi = True
-                    if has_hidpi and self.scale_mode == 'lowdpi':
-                        if dbusutil.get_scale() > 1:
-                            try:
-                                dbusutil.set_scale(1)
-                            except:
-                                pass
-                    elif has_hidpi and self.scale_mode == 'hidpi':
-                        if dbusutil.get_scale() < 2:
-                            try:
-                                dbusutil.set_scale(2)
-                            except:
-                                pass
-                    else:
-                        if dbusutil.get_scale() > 1:
-                            try:
-                                dbusutil.set_scale(1)
-                            except:
-                                pass
-    
-    def workaround_nvidia_390(self):
-        # NVIDIA 390 introduces an issue where a Shell/Mutter crash happens on lid close
-        # when two lowdpi external monitors are connected and hidpi mode is active.
-        # Until this is resolved, switch to lowdpi mode by default when second display is connected.
         
-        # Also, gnome-control-center cannot re-enable lodpi external monitor when in hidpi-mode.
-        # By default set lodpi mode when at least one display is connected.
-        lowdpi_count = 0
-        has_internal_panel = False
+    def has_lowdpi_prime_displays(self):
         for display in self.displays:
             if self.displays[display]['connected'] == True:
                 dpi = self.get_display_dpi(display)
                 if dpi == None:
                     pass
-                elif 'eDP' in display or self.displays[display]['connector_type'] == 'Panel':
-                    has_internal_panel = True
+                elif self.panel_activation_override(display):
+                    pass
                 elif dpi > 170:
                     pass
-                else:
-                    lowdpi_count = lowdpi_count + 1
-        
-        prev_nvidia_390_count = 0
-        try:
-            prev_nvidia_390_count = self.prev_nvidia_390_count
-            self.prev_nvidia_390_count = lowdpi_count
-        except:
-            self.prev_nvidia_390_count = 0
-        
-        if has_internal_panel and lowdpi_count >= 1 and prev_nvidia_390_count != lowdpi_count:
-            if self.scale_mode == 'hidpi':
-                self.scale_mode = 'lowdpi'
-                self.settings.set_string('mode', 'lodpi')
-            
-        
+                elif 'prime' in self.displays[display]:
+                    return True
+        return False
+    
     def has_mixed_hi_low_dpi_displays(self):
         found_hidpi = False
         found_lowdpi = False
@@ -1321,6 +1254,7 @@ class HiDPIAutoscaling:
         layout = self.calculate_layout2(revert=self.unforce)
         
         has_mixed_dpi, has_hidpi, has_lowdpi = self.has_mixed_hi_low_dpi_displays()
+        has_lowdpi_prime = self.has_lowdpi_prime_displays()
         
         # INTEL: match display scales unless user selects 'native resolution'
         if not self.unforce:
@@ -1337,14 +1271,19 @@ class HiDPIAutoscaling:
                     off_displays.append(d['monitor_spec']['connector'])
         for display in self.displays:
             if self.displays[display]['connected'] == True:
+                if 'prime' in self.displays[display]:
+                    if self.scale_mode == 'hidpi':
+                        force = False
+        for display in self.displays:
+            if self.displays[display]['connected'] == True:
                 # INTEL: set the display crtc
                 # NVIDIA: just get display parameters for nvidia-settings line
-                if self.get_gpu_vendor() == 'nvidia' and display in off_displays:
-                    pass
-                elif self.get_gpu_vendor() == 'intel' and self.displays[display]['crtc'] == 0:
+                if self.displays[display]['crtc'] == 0:
                     off_displays.append(display)
+                elif 'prime' in self.displays[display]:
+                    self.set_display_scaling(display, layout, force=force)
                 else:
-                    cmd = cmd + self.set_display_scaling(display, layout, force=force)
+                    cmd = cmd + self.set_display_scaling(display, layout, force=force, lowdpi_prime=has_lowdpi_prime)
         # NVIDIA: got parameters for nvidia-settings - actually set display modes
         if self.get_gpu_vendor() == 'nvidia':
             if has_hidpi:
@@ -1387,8 +1326,12 @@ class HiDPIAutoscaling:
                             log.info("Could not set Mutter scale mode hidpi")
                 # Let things settle down.
                 time.sleep(0.1)
+                for display in self.displays:
+                    if self.displays[display]['connected'] == True and 'prime' in self.displays[display]:
+                        self.set_display_scaling(display, layout, force=force)
                 # Now call nvidia settings with the metamodes we calculated in set_display_scaling()
-                subprocess.call('nvidia-settings --assign CurrentMetaMode="' + cmd + '"', shell=True)
+                if cmd is not "":
+                    subprocess.call('nvidia-settings --assign CurrentMetaMode="' + cmd + '"', shell=True)
                 if self.scale_mode == 'lowdpi' and dbusutil.get_scale() > 1.0:
                     try:
                         dbusutil.set_scale(1)
@@ -1488,9 +1431,6 @@ class HiDPIAutoscaling:
             if self.get_gpu_vendor() == 'nvidia':
                 time.sleep(0.1)
                 self.update_display_connections()
-
-            if self.get_gpu_vendor() == 'nvidia':
-                self.workaround_nvidia_390()
             
             if self.settings.get_boolean('enable') == False:
                 return False
@@ -1510,7 +1450,6 @@ class HiDPIAutoscaling:
         # First set appropriate initial display configuration
         self.prev_display_types = self.has_mixed_hi_low_dpi_displays()
         if self.get_gpu_vendor() == 'nvidia':
-            self.workaround_nvidia_390()
             self.set_scaled_display_modes()
         elif not self.prev_display_types[2]:
             self.unforce = True
@@ -1535,42 +1474,36 @@ class HiDPIAutoscaling:
         #    b) Ignore manual config changes.  Let gnome-control-center and the projector toggle do their thing.
         # 2) Switch to lowdpi when we detect a lowdpi external monitor via polling
         # 3) Turn on all displays when setting, except those disabled in monitors.xml
-        if self.get_gpu_vendor() == 'nvidia':
-            thread = threading.Thread(target = self.workaround_nvidia_off_displays)
-            thread.start()
-            while(running):
-                time.sleep(1000)
-        else:
-            while(running):
-                # Get subscribed xlib RANDR events. Blocks until next event is received.
-                ex = 0
+        while(running):
+            # Get subscribed xlib RANDR events. Blocks until next event is received.
+            ex = 0
+            try:
+                e = self.xlib_display.next_event()
+            except:
+                time.sleep(0.1)
+                ex = 1
+            if ex == 0:
+                if e.type == self.xlib_display.extension_event.ScreenChangeNotify:
+                    pass
+                elif e.type == 34:
+                    # Received MappingNotify event.
+                    pass
+                    #if e.sequence_number > mapping_notify_sequence:
+                    #   mapping_notify_sequence = e.sequence_number
+                    #   self.update(e)
+                else:
+                    if (e.type + e.sub_code) == self.xlib_display.extension_event.OutputPropertyNotify:
+                            # MUST set e to correct type from binary data.  Otherwise 
+                            # we'll have wrong contents, including nonsense timestamp.
+                            e = randr.OutputPropertyNotify(display=self.xlib_display.display, binarydata = e._binary)
+                # Multiple events are fired in quick succession, only act once.
                 try:
-                    e = self.xlib_display.next_event()
+                    new_timestamp = e.timestamp
                 except:
-                    time.sleep(0.1)
-                    ex = 1
-                if ex == 0:
-                    if e.type == self.xlib_display.extension_event.ScreenChangeNotify:
-                        pass
-                    elif e.type == 34:
-                        # Received MappingNotify event.
-                        pass
-                        #if e.sequence_number > mapping_notify_sequence:
-                        #   mapping_notify_sequence = e.sequence_number
-                        #   self.update(e)
-                    else:
-                        if (e.type + e.sub_code) == self.xlib_display.extension_event.OutputPropertyNotify:
-                                # MUST set e to correct type from binary data.  Otherwise 
-                                # we'll have wrong contents, including nonsense timestamp.
-                                e = randr.OutputPropertyNotify(display=self.xlib_display.display, binarydata = e._binary)
-                    # Multiple events are fired in quick succession, only act once.
-                    try:
-                        new_timestamp = e.timestamp
-                    except:
-                        new_timestamp = 0
-                    if new_timestamp > prev_timestamp:
-                        prev_timestamp = new_timestamp
-                        self.update(e)
+                    new_timestamp = 0
+                if new_timestamp > prev_timestamp:
+                    prev_timestamp = new_timestamp
+                    self.update(e)
             
 
 
