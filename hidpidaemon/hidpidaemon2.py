@@ -31,7 +31,7 @@ import logging
 import time
 import os
 
-from gi.repository import Gio, GObject, GLib
+from gi.repository import Gio, GObject, GLib, Gtk
 from pydbus import SessionBus
 from pydbus.publication import Publication
 from pydbus.generic import signal as PyDBusSignal
@@ -296,6 +296,11 @@ class HiDPIAutoscaling:
         for mode in resources['modes']:
             modes[mode['id']] = mode
         
+        try:
+            primary_output = self.xlib_window.xrandr_get_output_primary()._data['output']
+        except:
+            primary_output = None
+        
         new_displays = dict()
         for output in resources['outputs']:
             info = randr.get_output_info(self.xlib_display, output, resources['config_timestamp'])._data
@@ -309,6 +314,8 @@ class HiDPIAutoscaling:
             new_displays[info['name']]['mm_height'] = info['mm_height']
             new_displays[info['name']]['modes'] = modelist
             new_displays[info['name']]['crtc'] = info['crtc']
+            if primary_output == output:
+                new_displays[info['name']]['primary'] = True
             
             # Get connector type for each display. 'Panel' indicates internal display.
             new_displays[info['name']]['connector_type'] = ''
@@ -445,6 +452,9 @@ class HiDPIAutoscaling:
             h = HiDPIAutoscaling(self.model)
             h.scale_mode = self.scale_mode
             h.set_scaled_display_modes(notification=False)
+            if self.workaround_prime_detect_lowdpi_primary():
+                self.scale_mode = h.scale_mode
+                self.notification_send_signal()
         
     def on_notification_mode(self, obj, gparamstring):
         self.notification_send_signal()
@@ -466,6 +476,45 @@ class HiDPIAutoscaling:
         self.loop = GLib.MainLoop()
         GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, self.notification_terminate, None)
         self.loop.run()
+    
+    
+    def workaround_prime_detect_lowdpi_primary(self):
+        if self.scale_mode != 'hidpi':
+            return
+        
+        has_lowdpi_prime, has_hidpi_prime = self.has_prime_displays()
+        if not has_hidpi_prime:
+            return False
+        
+        for display in self.displays:
+            if 'primary' in self.displays[display]:
+                dpi = self.get_display_dpi(display)
+                if dpi is None:
+                    return False
+                elif dpi < 192: #GNOME's threshold
+                    return True
+        
+        return False
+    
+    def workaround_show_prime_set_primary_dialog(self):
+        # Show dialog to request switching hidpi display if the primary display is lowdpi
+        if not self.workaround_prime_detect_lowdpi_primary():
+            return
+        
+        output = subprocess.check_output('/usr/lib/hidpi-daemon/prime-dialog').decode('utf-8')
+        response = Gtk.ResponseType(int(output))
+        
+        if response == Gtk.ResponseType.CANCEL:
+            self.scale_mode = 'lowdpi'
+            self.settings.set_string('mode', 'lodpi')
+        elif response == Gtk.ResponseType.OK:
+            self.scale_mode = 'hidpi'
+            resources = self.xlib_window.xrandr_get_screen_resources()._data
+            for output in resources['outputs']:
+                info = randr.get_output_info(self.xlib_display, output, resources['config_timestamp'])._data
+                if 'eDP-1' in info['name']:
+                    self.xlib_window.xrandr_set_output_primary(output)
+                    return
     
     
     def get_display_position(self, display_name, align=(0,0)):
@@ -756,7 +805,7 @@ class HiDPIAutoscaling:
         display_positions = dict()
         display_scales = dict()
         
-        has_lowdpi_prime = self.has_lowdpi_prime_displays()
+        has_lowdpi_prime, has_hidpi_prime = self.has_prime_displays()
         
         # Calculate display scales
         for display in self.displays:
@@ -1209,8 +1258,10 @@ class HiDPIAutoscaling:
         elif self.get_gpu_vendor() == 'intel':
             return self.set_display_scaling_xrandr(display, layout, force_lowdpi=force)
     
-        
-    def has_lowdpi_prime_displays(self):
+    
+    def has_prime_displays(self):
+        found_hidpi = False
+        found_lowdpi = False
         for display in self.displays:
             if self.displays[display]['connected'] == True:
                 dpi = self.get_display_dpi(display)
@@ -1219,10 +1270,10 @@ class HiDPIAutoscaling:
                 elif self.panel_activation_override(display):
                     pass
                 elif dpi > 170:
-                    pass
+                    found_hidpi = True
                 elif 'prime' in self.displays[display]:
-                    return True
-        return False
+                    found_lowdpi = True
+        return found_lowdpi, found_hidpi
     
     def has_mixed_hi_low_dpi_displays(self):
         found_hidpi = False
@@ -1250,11 +1301,14 @@ class HiDPIAutoscaling:
         if self.settings.get_boolean('enable') == False:
                 return
         
+        has_mixed_dpi, has_hidpi, has_lowdpi = self.has_mixed_hi_low_dpi_displays()
+        has_lowdpi_prime, has_hidpi_prime = self.has_prime_displays()
+        
+        if has_hidpi_prime and has_lowdpi and self.scale_mode == 'hidpi':
+            self.workaround_show_prime_set_primary_dialog()
+        
         self.displays_xml = self.get_displays_xml()
         layout = self.calculate_layout2(revert=self.unforce)
-        
-        has_mixed_dpi, has_hidpi, has_lowdpi = self.has_mixed_hi_low_dpi_displays()
-        has_lowdpi_prime = self.has_lowdpi_prime_displays()
         
         # INTEL: match display scales unless user selects 'native resolution'
         if not self.unforce:
@@ -1431,6 +1485,11 @@ class HiDPIAutoscaling:
             if self.get_gpu_vendor() == 'nvidia':
                 time.sleep(0.1)
                 self.update_display_connections()
+
+            if self.get_gpu_vendor() == 'nvidia':
+                if self.workaround_prime_detect_lowdpi_primary():
+                    self.scale_mode = 'lowdpi'
+                    self.settings.set_string('mode', 'lodpi')
             
             if self.settings.get_boolean('enable') == False:
                 return False
@@ -1450,7 +1509,11 @@ class HiDPIAutoscaling:
         # First set appropriate initial display configuration
         self.prev_display_types = self.has_mixed_hi_low_dpi_displays()
         if self.get_gpu_vendor() == 'nvidia':
-            self.set_scaled_display_modes()
+            if self.workaround_prime_detect_lowdpi_primary():
+                self.scale_mode = 'lowdpi'
+                self.settings.set_string('mode', 'lodpi')
+            else:
+                self.set_scaled_display_modes()
         elif not self.prev_display_types[2]:
             self.unforce = True
             self.set_scaled_display_modes()
