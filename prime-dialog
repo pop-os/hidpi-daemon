@@ -1,0 +1,37 @@
+#!/usr/bin/python3
+
+import gi
+gi.require_version('Gtk', '3.0')
+
+from gi.repository import Gtk
+import os
+
+
+class PrimeDialog(Gtk.MessageDialog):
+    def __init__(self, window):
+        Gtk.MessageDialog.__init__(self, window, 1, Gtk.MessageType.QUESTION, Gtk.ButtonsType.NONE, "HiDPI Mode Requires Changing Primary Display.")
+        
+        self.format_secondary_text("You can switch to HiDPI Mode and set your laptop's display as the primary display for best clarity, or stay in LoDPI Mode.")
+        
+        self.add_buttons("Stay in LoDPI", Gtk.ResponseType.CANCEL)
+        self.add_buttons("Enable HiDPI", Gtk.ResponseType.OK)
+        
+        image = Gtk.Image()
+        image.set_from_icon_name("preferences-desktop-display-symbolic", Gtk.IconSize.DIALOG)
+        image.show()
+        self.set_image(image)
+        self.set_icon_name("preferences-desktop-display")
+        
+        self.show_all()
+        
+    #def destroy(self):
+    #    Gtk.main_quit()
+
+dialog = PrimeDialog(Gtk.Window())
+response = dialog.run()
+dialog.destroy()
+
+if response == Gtk.ResponseType.CANCEL:
+    print(response)
+elif response == Gtk.ResponseType.OK:
+    print(response)
