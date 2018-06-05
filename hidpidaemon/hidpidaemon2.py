@@ -1263,7 +1263,7 @@ class HiDPIAutoscaling:
         found_hidpi = False
         found_lowdpi = False
         for display in self.displays:
-            if self.displays[display]['connected'] == True:
+            if self.displays[display]['connected'] == True and 'prime' in self.displays[display]:
                 dpi = self.get_display_dpi(display)
                 if dpi == None:
                     pass
