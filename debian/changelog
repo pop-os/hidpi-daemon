@@ -1,11 +1,10 @@
-hidpi-daemon (18.04.3~~alpha) bionic; urgency=low
+hidpi-daemon (18.04.3) bionic; urgency=low
 
-  * Daily WIP for 18.04.3
   * Add support for PRIME displays to support laptops with hybrid graphics.
   * Remove workarounds for bugs in the NVIDIA 390 driver
   * Remove gschema override to disable on NVIDIA graphics by default.
 
- -- David Jordan <david2@system76.com>  Thu, 07 Jun 2018 14:32:21 -0600
+ -- David Jordan <david2@system76.com>  Thu, 07 Jun 2018 16:06:53 -0600
 
 hidpi-daemon (18.04.2) bionic; urgency=low
 
