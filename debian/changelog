@@ -1,3 +1,9 @@
+hidpi-daemon (18.04.4~~alpha) bionic; urgency=low
+
+  * Daily WIP for 18.04.4
+
+ -- David Jordan <david2@system76.com>  Fri, 15 Jun 2018 12:24:06 -0600
+
 hidpi-daemon (18.04.3) bionic; urgency=low
 
   * Add support for PRIME displays to support laptops with hybrid graphics.
