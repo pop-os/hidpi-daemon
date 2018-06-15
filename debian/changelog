@@ -1,6 +1,7 @@
 hidpi-daemon (18.04.4~~alpha) bionic; urgency=low
 
   * Daily WIP for 18.04.4
+  * Fix layout regression on intel systems
 
  -- David Jordan <david2@system76.com>  Fri, 15 Jun 2018 12:24:06 -0600
 

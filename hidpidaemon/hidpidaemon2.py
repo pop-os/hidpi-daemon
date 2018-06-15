@@ -820,7 +820,7 @@ class HiDPIAutoscaling:
             else:
                 if self.displays_xml:
                     dpi = self.get_display_dpi(display, saved=self.saved)
-                elif self.get_gpu_vendor == 'intel':
+                elif self.get_gpu_vendor() == 'intel':
                     dpi = self.get_display_dpi(display, current=True)
                 else:
                     dpi = self.get_display_dpi(display)
@@ -831,18 +831,16 @@ class HiDPIAutoscaling:
             else:
                 scale_factor = 1
                 
-            if self.scale_mode == 'hidpi' and revert == False:
-                scale_factor = scale_factor / 2
-                if dpi is None:
-                    pass
-                elif dpi <= 170:
-                    if 'prime' in self.displays[display]:
-                        scale_factor = scale_factor * 2
-                    elif has_lowdpi_prime:
-                        scale_factor = scale_factor * 2
-            
-            #if self.scale_mode == 'hidpi' and 'prime' in self.displays[display] and dpi > 170:
-            #    scale_factor = scale_factor / 2
+            if self.get_gpu_vendor() == 'nvidia':
+                if self.scale_mode == 'hidpi' and revert == False:
+                    scale_factor = scale_factor / 2
+                    if dpi is None:
+                        pass
+                    elif dpi <= 170:
+                        if 'prime' in self.displays[display]:
+                            scale_factor = scale_factor * 2
+                        elif has_lowdpi_prime:
+                            scale_factor = scale_factor * 2
             
             display_scales[display] = scale_factor
         
