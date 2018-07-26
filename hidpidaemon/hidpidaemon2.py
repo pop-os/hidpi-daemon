@@ -1297,7 +1297,7 @@ class HiDPIAutoscaling:
     def set_scaled_display_modes(self, notification=True):
         # Don't set resolutions at all if disabled to prevent issues.
         if self.settings.get_boolean('enable') == False:
-                return
+            return
         
         has_mixed_dpi, has_hidpi, has_lowdpi = self.has_mixed_hi_low_dpi_displays()
         has_lowdpi_prime, has_hidpi_prime = self.has_prime_displays()
@@ -1511,7 +1511,9 @@ class HiDPIAutoscaling:
                 self.scale_mode = 'lowdpi'
                 self.settings.set_string('mode', 'lodpi')
             else:
-                self.set_scaled_display_modes()
+                has_mixed_dpi, has_hidpi, has_lowdpi = self.has_mixed_hi_low_dpi_displays()
+                if has_hidpi:
+                    self.set_scaled_display_modes()
         elif not self.prev_display_types[2]:
             self.unforce = True
             self.set_scaled_display_modes()
