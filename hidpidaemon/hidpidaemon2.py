@@ -1029,13 +1029,20 @@ class HiDPIAutoscaling:
 
     def get_internal_lid_state(self):
         try:
-            lid_file = open('/proc/acpi/button/lid/LID0/state', 'r')
+            lid_file_path = '/proc/acpi/button/lid/LID0/state'
+            if os.path.isfile(lid_file_path):
+                lids_path = '/proc/acpi/button/lid/'
+                lid_dirs = [d for d in os.listdir(lids_path) if os.path.isdir(os.path.join(lids_path, d))]
+                if len(lid_dirs) < 1:
+                    return True # No lids found: System may not be a laptop.
+                else:
+                    lid_file_path = os.path.join('/', 'proc', 'acpi', 'button', 'lid', lid_dirs[0], 'state')
+            lid_file = open(lid_file_path, 'r')
             if 'open' in lid_file.read():
                 return True
             else:
                 return False
         except:
-            log.info('Could not find lid state.  System may not be a laptop.')
             return True
     
     def panel_activation_override(self, display_name):
