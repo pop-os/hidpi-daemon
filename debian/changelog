@@ -3,6 +3,8 @@ hidpi-daemon (18.04.4~~alpha) bionic; urgency=low
   * Daily WIP for 18.04.4
   * Fix layout regression on intel systems
   * Don't override user scaling on session login (unless hidpi is present).
+  * Notification now shows correct mode on session login on Intel.
+  * Handle laptop lids on more hardware.
 
  -- David Jordan <david2@system76.com>  Fri, 15 Jun 2018 12:24:06 -0600
 
