@@ -1516,9 +1516,11 @@ class HiDPIAutoscaling:
                     self.set_scaled_display_modes()
         elif not self.prev_display_types[2]:
             self.unforce = True
+            self.settings.set_string('mode', 'hidpi')
             self.set_scaled_display_modes()
         elif self.prev_display_types[0]:
             self.unforce = False
+            self.settings.set_string('mode', 'lodpi')
             self.set_scaled_display_modes()
         
         # calling update fixes overlap bug on first mode set.
@@ -1597,4 +1599,5 @@ def run_hidpi_autoscaling(model):
         return _run_hidpi_autoscaling(model)
     except Exception:
         log.exception('Error calling _run_hidpi_autoscaling(%r):', model)
+
 
