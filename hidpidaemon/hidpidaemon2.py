@@ -1499,6 +1499,11 @@ class HiDPIAutoscaling:
             if self.settings.get_boolean('enable') == False:
                 return False
             
+            # Don't override user configuration when only lodpi displays are connected.
+            # This appears to be safe for now.
+            if not has_hidpi:
+                return False
+            
             self.set_scaled_display_modes()
         return False
     
