@@ -122,23 +122,23 @@ class HiDPIDBusServer(object):
             </interface>
         </node>
     """
-    
+
     def __init__(self, hidpi='lowdpi', display_types='lodpi', capability='native'):
         object.__init__(self)
         self.hidpi = hidpi
         self.display_types = display_types
         self.capability = capability
-    
+
     def getstate(self):
         self.send_state_signal(hidpi=self.hidpi, display_types=self.display_types, capability=self.capability)
-    
+
     def send_state_signal(self, hidpi='lowdpi', display_types='lodpi', capability='native'):
         self.hidpi = hidpi
         self.display_types = display_types
         self.capability = capability
-        
+
         self.state(self.hidpi, self.display_types, self.capability)
-        
+
     state = PyDBusSignal()
 
 class HiDPIAutoscaling:
@@ -146,7 +146,7 @@ class HiDPIAutoscaling:
         self.model = model
         self.displays = dict() # {'LVDS-0': 'connected', 'HDMI-0': 'disconnected'}
         self.screen_maximum = XRes(x=8192, y=8192)
-        self.pixel_doubling = False 
+        self.pixel_doubling = False
         self.scale_mode = 'hidpi' # If we have nvidia with the proprietary driver, set to hidpi for pixel doubling
         self.notification = None
         self.queue = queue.Queue()
@@ -156,15 +156,15 @@ class HiDPIAutoscaling:
         self.prev_lid_state = self.get_internal_lid_state()
         self.dbs = HiDPIDBusServer()
         self.pub = None
-        
+
         self.init_gsettings()
         self.init_xlib()
-        
+
     def init_gsettings(self):
         #self.gsettings = HiDPIGSettings()
         self.settings = Gio.Settings('com.system76.hidpi')
         #self.settings.bind('mode', self.gsettings, 'mode', Gio.SettingsBindFlags.DEFAULT)
-        
+
     def init_xlib(self):
         self.xlib_display = xdisplay.Display()
         screen = self.xlib_display.screen()
@@ -172,14 +172,14 @@ class HiDPIAutoscaling:
         self.xlib_window.xrandr_select_input(randr.RRScreenChangeNotifyMask)
         #            | randr.RROutputChangeNotifyMask
         #            | randr.RROutputPropertyNotifyMask)
-                    
+
         self.update_display_connections()
         if self.get_gpu_vendor() == 'nvidia':
             self.scale_mode = 'hidpi'
             self.screen_maximum = XRes(x=32768, y=32768)
         else:
             self.add_output_mode()
-            
+
         self.displays_xml = self.get_displays_xml()
 
     #Test for nvidia proprietary driver and nvidia-settings
@@ -191,7 +191,7 @@ class HiDPIAutoscaling:
             return 'nvidia'
         else:
             return 'intel'
-    
+
     def add_output_mode(self):
         # GALP2 EXAMPLE
         # name       pclk   hdisp,hsyncstart,hsyncend,hsyncend,htotal, v..., flags
@@ -214,7 +214,7 @@ class HiDPIAutoscaling:
             # We got an error, but it's fine.
             # Eventually, we'll need to handle picking a 'close' mode if we can't make one.
             pass
-        
+
         time.sleep(0.1)
         resources = self.xlib_window.xrandr_get_screen_resources()._data
         selected_output = None
@@ -225,16 +225,16 @@ class HiDPIAutoscaling:
         for mode in resources['modes']:
             if mode['width'] == 1600 and mode['height'] == 900:
                 randr.add_output_mode(self.xlib_display, selected_output, mode['id'])
-        
+
         # Need to refresh display modes to reflect the mode we just added
         self.update_display_connections()
-    
+
     def get_displays_xml(self):
         mon_list = []
         resources = self.xlib_window.xrandr_get_screen_resources()._data
         for output in resources['outputs']:
             info = randr.get_output_info(self.xlib_display, output, resources['config_timestamp'])._data
-            
+
             properties_list = self.xlib_display.xrandr_list_output_properties(output)._data
             for atom in properties_list['atoms']:
                 atom_name = self.xlib_display.get_atom_name(atom)
@@ -248,7 +248,7 @@ class HiDPIAutoscaling:
                     char3 = (int(edidv) & 0x001F) >> 0
                     table = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
                     edid_vendor = table[char1-1] + table[char2-1] + table[char3-1]
-                    
+
                     edidp = prop['value'][10] + (prop['value'][11] << 8)
                     modelname = None
                     for i in range(0x36, 0x7E, 0x12):
@@ -263,7 +263,7 @@ class HiDPIAutoscaling:
                         edid_product = str(hex(edidp))
                     else:
                         edid_product = bytes(modelname).decode('utf-8').rstrip(' ').rstrip('\x00')
-                    
+
                     edids = prop['value'][12] + (prop['value'][13] << 8) + (prop['value'][14] << 16) + (prop['value'][15] << 24)
                     edid_serial = str.format('0x{:08x}', edids)
                     serial = None
@@ -279,28 +279,28 @@ class HiDPIAutoscaling:
                         edid_serial = str.format('0x{:08x}', edids)
                     else:
                         edid_serial = bytes(serial).decode('utf-8').rstrip('\x00')
-                    
+
                     mon_list.append({'connector': info['name'], 'vendor': edid_vendor, 'product': edid_product, 'serial': edid_serial})
-        
-        
+
+
         xml = monitorsxml.MonitorsXml()
         c = xml.get_config_from_monitors(mon_list)
         return c
-    
-    
+
+
     def update_display_connections(self):
         resources = self.xlib_window.xrandr_get_screen_resources()._data
         self.resources = resources
-        
+
         modes = dict()
         for mode in resources['modes']:
             modes[mode['id']] = mode
-        
+
         try:
             primary_output = self.xlib_window.xrandr_get_output_primary()._data['output']
         except:
             primary_output = None
-        
+
         new_displays = dict()
         for output in resources['outputs']:
             info = randr.get_output_info(self.xlib_display, output, resources['config_timestamp'])._data
@@ -316,7 +316,7 @@ class HiDPIAutoscaling:
             new_displays[info['name']]['crtc'] = info['crtc']
             if primary_output == output:
                 new_displays[info['name']]['primary'] = True
-            
+
             # Get connector type for each display. 'Panel' indicates internal display.
             new_displays[info['name']]['connector_type'] = ''
             properties_list = self.xlib_display.xrandr_list_output_properties(output)._data
@@ -328,14 +328,14 @@ class HiDPIAutoscaling:
                     new_displays[info['name']]['connector_type'] = connector_type
                 if atom_name == 'PRIME Synchronization':
                     new_displays[info['name']]['prime'] = True
-        
-        
+
+
         # In some cases, the CRTC won't have changed when the lid opens.
         # So update displays if the lid state has changed.
         lid_state = self.get_internal_lid_state()
         if lid_state != self.prev_lid_state:
             self.prev_lid_state = lid_state
-            
+
             # Always update displays on lid open
             if lid_state:
                 self.displays = new_displays
@@ -355,8 +355,8 @@ class HiDPIAutoscaling:
                         return True
         else:
             self.prev_lid_state = lid_state
-        
-        
+
+
         for display in new_displays:
             status = new_displays[display]['connected']
             if display in self.displays:
@@ -375,16 +375,16 @@ class HiDPIAutoscaling:
             else:
                 self.displays = new_displays
                 return True
-        
+
         self.displays = new_displays
         return False
-    
+
     def acpid_listen(self):
         import socket
 
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         s.connect("/var/run/acpid.socket")
-        
+
         while True:
             for event in s.recv(4096).decode('utf-8').split('\n'):
                 event = event.split(' ')
@@ -393,21 +393,21 @@ class HiDPIAutoscaling:
                         self.notification_update_scaling()
                     elif event[2] == 'close':
                         pass
-    
-    
+
+
     def notification_terminate(self, status):
         self.pub.unpublish()
         os._exit(0)
-    
+
     def notification_send_signal(self):
         gpu_vendor = self.get_gpu_vendor()
         if gpu_vendor == 'intel':
             capability = 'native'
         else:
             capability = 'pixel-doubling'
-        
+
         has_mixed_dpi, has_hidpi, has_lowdpi = self.has_mixed_hi_low_dpi_displays()
-        
+
         display_types = ''
         if has_mixed_dpi:
             display_types = display_types + 'mixed' + ', '
@@ -415,11 +415,11 @@ class HiDPIAutoscaling:
             display_types = display_types + 'hidpi' + ', '
         if has_lowdpi:
             display_types = display_types + 'lodpi' + ', '
-        
+
         mode = self.settings.get_string('mode')
-        
+
         self.dbs.send_state_signal(hidpi=mode, display_types=display_types, capability=capability)
-    
+
     def notification_update_scaling(self, restart=True):
         if self.queue is not None:
             if self.get_gpu_vendor() == 'nvidia':
@@ -455,37 +455,37 @@ class HiDPIAutoscaling:
             if self.workaround_prime_detect_lowdpi_primary():
                 self.scale_mode = h.scale_mode
                 self.notification_send_signal()
-        
+
     def on_notification_mode(self, obj, gparamstring):
         self.notification_send_signal()
         self.notification_update_scaling(restart=False)
-    
+
     def notification_register_dbus(self, has_mixed_dpi, unforce):
         settings = HiDPIGSettings()
         self.settings.bind('mode', settings, 'mode', Gio.SettingsBindFlags.DEFAULT)
         settings.connect('notify::mode', self.on_notification_mode)
-        
+
         self.dbs = HiDPIDBusServer()
-        
+
         bus = SessionBus()
         self.pub = Publication(bus, "com.system76.hidpi", self.dbs, allow_replacement=True, replace=True)
         if self.queue is not None:
             self.queue.put(self.dbs)
             self.queue.put(self.pub)
-        
+
         self.loop = GLib.MainLoop()
         GLib.unix_signal_add(GLib.PRIORITY_HIGH, signal.SIGINT, self.notification_terminate, None)
         self.loop.run()
-    
-    
+
+
     def workaround_prime_detect_lowdpi_primary(self):
         if self.scale_mode != 'hidpi':
             return
-        
+
         has_lowdpi_prime, has_hidpi_prime = self.has_prime_displays()
         if not has_hidpi_prime:
             return False
-        
+
         for display in self.displays:
             if 'primary' in self.displays[display]:
                 dpi = self.get_display_dpi(display)
@@ -493,17 +493,17 @@ class HiDPIAutoscaling:
                     return False
                 elif dpi < 192: #GNOME's threshold
                     return True
-        
+
         return False
-    
+
     def workaround_show_prime_set_primary_dialog(self):
         # Show dialog to request switching hidpi display if the primary display is lowdpi
         if not self.workaround_prime_detect_lowdpi_primary():
             return
-        
+
         output = subprocess.check_output('/usr/lib/hidpi-daemon/prime-dialog').decode('utf-8')
         response = Gtk.ResponseType(int(output))
-        
+
         if response == Gtk.ResponseType.CANCEL:
             self.scale_mode = 'lowdpi'
             self.settings.set_string('mode', 'lodpi')
@@ -515,8 +515,8 @@ class HiDPIAutoscaling:
                 if 'eDP-1' in info['name']:
                     self.xlib_window.xrandr_set_output_primary(output)
                     return
-    
-    
+
+
     def get_display_position(self, display_name, align=(0,0)):
         # For performance reasons, self.resources must be set with self.xlib_window.xrandr_get_screen_resources() before calling.
         #resources = self.xlib_window.xrandr_get_screen_resources()._data
@@ -532,7 +532,7 @@ class HiDPIAutoscaling:
                         return x, y
                     except:
                         -1, -1
-                
+
         if crtc != 0:
             crtc_info = randr.get_crtc_info(self.xlib_display, crtc, resources['config_timestamp'])._data
             if align != (0,0):
@@ -549,13 +549,13 @@ class HiDPIAutoscaling:
             return 0, 0
         else:
             return -1, -1
-    
+
     def get_display_dpi(self, display_name, current=False, saved=False):
         width = self.displays[display_name]['mm_width']
         height = self.displays[display_name]['mm_height']
-        
+
         mode = {}
-        
+
         if current:
             try:
                 resources = self.resources._data
@@ -587,17 +587,17 @@ class HiDPIAutoscaling:
                 mode = self.displays[display_name]['modes'][0]
             except:
                 return None
-        
+
         x_res = mode['width']
         y_res = mode['height']
-        
+
         # Some displays report aspect ratio instead of actual dimensions.
         if width == 160 and height == 90:
             if x_res >= 3840 and y_res >= 2160:
                 return 192
             else:
                 return 96
-        
+
         if width > 0 and height > 0:
             dpi_x = x_res/width * 25.4
             dpi_y = y_res/height * 25.4
@@ -606,7 +606,7 @@ class HiDPIAutoscaling:
             return 0
         else:
             return None
-        
+
     def get_display_logical_resolution(self, display_name, scale_factor, saved=False):
         try:
             mode = self.displays[display_name]['modes'][0]
@@ -620,11 +620,11 @@ class HiDPIAutoscaling:
             return int(x_res/scale_factor), int(y_res/scale_factor)
         except:
             return 0, 0
-    
+
     def get_aligned_layout_entries(self, alignment):
         position_lookup_entries_x = dict()
         position_lookup_entries_y = dict()
-        
+
         for display in self.displays:
             position_x, position_y = self.get_display_position(display, align=alignment)
             if position_x != -1 and position_y != -1:
@@ -636,40 +636,40 @@ class HiDPIAutoscaling:
                     position_lookup_entries_y[position_y].append(display)
                 else:
                     position_lookup_entries_y[position_y] = [display]
-                    
+
         return position_lookup_entries_x, position_lookup_entries_y
-    
+
     def get_adjacent_displays(self, display, display_graph, lookup_entries):
         display_left, display_top = self.get_display_position(display, align=(0,0))
         display_right, display_bottom = self.get_display_position(display, align=(1,1))
-        
+
         #center_lookup_entries_x       = lookup_entries['center_x']
         top_left_lookup_entries_x     = lookup_entries['top_left_x']
         bottom_right_lookup_entries_x = lookup_entries['bottom_right_x']
         #center_lookup_entries_y       = lookup_entries['center_y']
         top_left_lookup_entries_y     = lookup_entries['top_left_y']
         bottom_right_lookup_entries_y = lookup_entries['bottom_right_y']
-        
+
         display_graph[display] = []
         has_adjacent = False
-        
+
         if display_left != -1:
             if display_left in bottom_right_lookup_entries_x:
                 for adjacent_display in bottom_right_lookup_entries_x[display_left]:
                     adjacent_left, adjacent_top = self.get_display_position(adjacent_display, (0,0))
                     adjacent_right, adjacent_bottom = self.get_display_position(adjacent_display, (1,1))
-                    if adjacent_top < display_bottom and adjacent_bottom > display_top: 
+                    if adjacent_top < display_bottom and adjacent_bottom > display_top:
                         has_adjacent = True
                         display_graph[display].append((adjacent_display, 'left'))
-                            
+
             if display_right in top_left_lookup_entries_x:
                 for adjacent_display in top_left_lookup_entries_x[display_right]:
                     adjacent_left, adjacent_top = self.get_display_position(adjacent_display, (0,0))
                     adjacent_right, adjacent_bottom = self.get_display_position(adjacent_display, (1,1))
-                    if adjacent_top < display_bottom and adjacent_bottom > display_top: 
+                    if adjacent_top < display_bottom and adjacent_bottom > display_top:
                         has_adjacent = True
                         display_graph[display].append((adjacent_display, 'right'))
-                            
+
             if display_top in bottom_right_lookup_entries_y:
                 for adjacent_display in bottom_right_lookup_entries_y[display_top]:
                     adjacent_left, adjacent_top = self.get_display_position(adjacent_display, (0,0))
@@ -677,7 +677,7 @@ class HiDPIAutoscaling:
                     if adjacent_left < display_right and adjacent_right > display_left:
                         has_adjacent = True
                         display_graph[display].append((adjacent_display, 'top'))
-                            
+
             if display_bottom in top_left_lookup_entries_y:
                 for adjacent_display in top_left_lookup_entries_y[display_bottom]:
                     adjacent_left, adjacent_top = self.get_display_position(adjacent_display, (0,0))
@@ -685,8 +685,8 @@ class HiDPIAutoscaling:
                     if adjacent_left < display_right and adjacent_right > display_left:
                         has_adjacent = True
                         display_graph[display].append((adjacent_display, 'bottom'))
-            
-            
+
+
             # Remove any (adjacent) closed internal displays from graph.
             # It can cause mutter to refuse to set scale if we give it space in layout.
             for adjacent_pair in display_graph[display]:
@@ -695,9 +695,9 @@ class HiDPIAutoscaling:
                     display_graph[display].remove(adjacent_pair)
                     if len(display_graph[display]) == 0:
                        has_adjacent = False
-            
+
             # If there's no adjacent display, find nearest one and flag it as adjacent with direction.
-            # System will favor top/bottom over left/right, so adjust vertical offset by 9/16. 
+            # System will favor top/bottom over left/right, so adjust vertical offset by 9/16.
             if not has_adjacent:
                 closest_display = None
                 closest_distance = -1
@@ -708,7 +708,7 @@ class HiDPIAutoscaling:
                         dist_y = -1
                         near_left, near_top = self.get_display_position(near, (0,0))
                         near_right, near_bottom = self.get_display_position(near, (1,1))
-                        
+
                         if near_left <= display_right and near_right >= display_left:
                             bottom_x = near_top - display_bottom
                             top_x = display_top - near_bottom
@@ -717,12 +717,12 @@ class HiDPIAutoscaling:
                                 direction = 'bottom'
                             else:
                                 direction = 'top'
-                            
+
                             if not closest_display or abs(dist_x) < abs(closest_distance):
                                 closest_display = near
                                 closest_distance = dist_x
                                 closest_direction = direction
-                        
+
                         elif near_top <= display_bottom and near_bottom >= display_top:
                             right_y = near_left - display_right
                             left_y = display_left - near_right
@@ -731,36 +731,36 @@ class HiDPIAutoscaling:
                                 direction = 'right'
                             else:
                                 direction = 'left'
-                            
+
                             dist_y = int(dist_y * 9 / 16)
-                            
+
                             if not closest_display or abs(dist_y) < abs(closest_distance):
                                 closest_display = near
                                 closest_distance = dist_y
                                 closest_direction = direction
-                
+
                 if closest_display:
                     display_graph[display].append((closest_display, closest_direction))
-        
+
         # Remove from graph if this is a closed internal display.
         # It can cause mutter to refuse to set scale if we give it space in layout.
         if self.panel_activation_override(display):
             display_graph[display] = []
-                    
+
         return display_graph[display]
-    
+
     def get_display_graph(self, lookup_entries, revert=False):
         display_graph = {}
         for display in self.displays:
             # Find adjacencies
             display_graph[display] = self.get_adjacent_displays(display, display_graph, lookup_entries)
-            
+
             # Remove display from graph if no adjacenies
             if not display_graph[display]:
                 del display_graph[display]
-        
+
         return display_graph
-    
+
     def align_display_with_adjacent_x(self, display_left, display_right, adjacent_left, adjacent_right, adjacent_logical_resolution_x, offset, logical_resolution_x):
         # Left edges are aligned, keep them snapped
         if adjacent_left == display_left:
@@ -773,45 +773,45 @@ class HiDPIAutoscaling:
             span = adjacent_right - display_left
             new_span_range = int(adjacent_logical_resolution_x) + logical_resolution_x
             new_span = span * (new_span_range / span_range)
-            
+
             new_adjacent_right = adjacent_left + offset + adjacent_logical_resolution_x
             new_display_left_x = (int(new_adjacent_right - new_span) - (adjacent_left))
         return new_display_left_x
-    
+
     def calculate_layout2(self, revert=False):
         # Layout displays without overlap.  We need to make sure not to exceed
         # the maximum X screen size.  Intel graphics are limited to 8192x8192,
         # so a hidpi internal display and two external displays can exceed this
         # limit.
-        
-        # First, we calculate lookups for edge positions and use these to find 
-        # adjacent displays.  We build and traverse a graph of these adjacent 
+
+        # First, we calculate lookups for edge positions and use these to find
+        # adjacent displays.  We build and traverse a graph of these adjacent
         # displays and position each display relative to its neighbor.
-        
+
         self.resources = self.xlib_window.xrandr_get_screen_resources()
-        
+
         center_lookup_entries_x,       center_lookup_entries_y       = self.get_aligned_layout_entries((0.5,0.5))
         top_left_lookup_entries_x,     top_left_lookup_entries_y     = self.get_aligned_layout_entries((0.0,0.0))
         bottom_right_lookup_entries_x, bottom_right_lookup_entries_y = self.get_aligned_layout_entries((1.0,1.0))
-        
-        lookup_entries = {'top_left_x': top_left_lookup_entries_x, 
-                          'top_left_y': top_left_lookup_entries_y, 
-                          'center_x': center_lookup_entries_x, 
-                          'center_y': center_lookup_entries_y, 
-                          'bottom_right_x': bottom_right_lookup_entries_x, 
+
+        lookup_entries = {'top_left_x': top_left_lookup_entries_x,
+                          'top_left_y': top_left_lookup_entries_y,
+                          'center_x': center_lookup_entries_x,
+                          'center_y': center_lookup_entries_y,
+                          'bottom_right_x': bottom_right_lookup_entries_x,
                           'bottom_right_y': bottom_right_lookup_entries_y}
-        
+
         display_graph = dict()
         display_positions = dict()
         display_scales = dict()
-        
+
         has_lowdpi_prime, has_hidpi_prime = self.has_prime_displays()
-        
+
         # Calculate display scales
         for display in self.displays:
             display_left, display_top = self.get_display_position(display, align=(0,0))
             display_right, display_bottom = self.get_display_position(display, align=(1,1))
-            
+
             # Get correct dpi and scale factor based on context.
             # Revert needs native resolution
             # Otherwise we need to use current resolution or value stored in monitors.xml if available.
@@ -830,7 +830,7 @@ class HiDPIAutoscaling:
                 scale_factor = 2
             else:
                 scale_factor = 1
-                
+
             if self.get_gpu_vendor() == 'nvidia':
                 if self.scale_mode == 'hidpi' and revert == False:
                     scale_factor = scale_factor / 2
@@ -841,25 +841,25 @@ class HiDPIAutoscaling:
                             scale_factor = scale_factor * 2
                         elif has_lowdpi_prime:
                             scale_factor = scale_factor * 2
-            
+
             display_scales[display] = scale_factor
-        
+
         # Generate graph of adjacent displays.
         display_graph = self.get_display_graph(lookup_entries, revert=revert)
-        
+
         #Single display has no adjacencies!
         if len(display_graph) < 1:
             for display in self.displays:
                 if self.displays[display]['connected'] == True:
                     display_positions[display] = (0, 0)
-        
+
         # Walk adjacent display graph to generate new positions for each display.
         max_negative_offset_x = 32769 # Keep track of leftmost value and offset all displays by it.
         max_negative_offset_y = 32769 # Keep track of topmost value and  offset all displays by it.
         for adjacent_display in display_graph:
             if len(display_positions) < 1:
                 display_positions[adjacent_display] = (0, 0)
-            
+
             # Run through adjacent displays until all have positions.
             adjacent_displays = []
             for display, direction in display_graph[adjacent_display]:
@@ -870,7 +870,7 @@ class HiDPIAutoscaling:
                 adjacent = adjacent_display
                 # Set display position from adjacent if possible.
                 # If not, try to swap pair and set position of adjacent display.
-                # If neither has position available, skip this adjacent for now 
+                # If neither has position available, skip this adjacent for now
                 # and set it later once display position has been set.
                 if adjacent_display in display_positions:
                     offset_x = display_positions[adjacent_display][0]
@@ -898,19 +898,19 @@ class HiDPIAutoscaling:
                     if len(adjacent_displays) > 0:
                         adjacent_displays.append((display, direction))
                     #log.warning("Cannot find adjacent display in layout")
-                    
+
                 if not skip_pair:
                     # Get positions, scale, and logical resolution for both displays
                     scale_factor = display_scales[display]
                     # getting correct logical resolution depends on whether to use native or saved values
                     logical_resolution_x, logical_resolution_y = self.get_display_logical_resolution(display, scale_factor, saved=(self.saved and not revert))
-                    
+
                     display_left, display_top = self.get_display_position(display, align=(0,0))
                     display_right, display_bottom = self.get_display_position(display, align=(1,1))
-                    
+
                     adjacent_left, adjacent_top = self.get_display_position(adjacent, (0,0))
                     adjacent_right, adjacent_bottom = self.get_display_position(adjacent, (1,1))
-                    
+
                     # getting correct logical resolution depends on whether to use native or saved values
                     adjacent_logical_resolution_x, adjacent_logical_resolution_y = self.get_display_logical_resolution(adjacent, display_scales[adjacent], saved=(self.saved and not revert))
                     # Calculate new display position based on adjacent.
@@ -926,39 +926,39 @@ class HiDPIAutoscaling:
                     elif direction == 'bottom':
                         new_current_display_left = self.align_display_with_adjacent_x(display_left, display_right, adjacent_left, adjacent_right, adjacent_logical_resolution_x, offset_x, logical_resolution_x)
                         new_current_display_top = offset_y + adjacent_logical_resolution_y
-                        
+
                     if new_current_display_left < max_negative_offset_x:
                         max_negative_offset_x = new_current_display_left
                     if new_current_display_top < max_negative_offset_y:
                         max_negative_offset_y = new_current_display_top
-                    
+
                     del adjacent_displays[0]
-                    
+
                     # Now add display to list
                     display_positions[display] = (new_current_display_left, new_current_display_top)
-        
+
         # If we didn't set an offset coordinate (e.g. when there is only one display)
         # then set offset to zero, to prevent setting bad display modes.
         if max_negative_offset_x == 32769:
             max_negative_offset_x = 0
         if max_negative_offset_y == 32769:
             max_negative_offset_y = 0
-        
+
         # Offset display positions so all coordinates are non-negative
         for display in display_positions:
             display_positions[display] = (display_positions[display][0] - max_negative_offset_x, display_positions[display][1] - max_negative_offset_y)
-        
+
         return display_positions
-        
-    
+
+
     def calculate_layout(self, revert=False):
         position_lookup_entries_x = dict()
         position_lookup_entries_y = dict()
         cur_position_entries_x = list()
         cur_position_entries_y = list()
-        
+
         display_positions = dict()
-        
+
         for display in self.displays:
             position_x, position_y = self.get_display_position(display)
             if position_x != -1 and position_y != -1:
@@ -974,7 +974,7 @@ class HiDPIAutoscaling:
                     cur_position_entries_y = [display]
                 position_lookup_entries_x[position_x] = cur_position_entries_x
                 position_lookup_entries_y[position_y] = cur_position_entries_y
-        
+
         prev_right = 0
         prev_top = 0
         prev_bottom = 0
@@ -991,7 +991,7 @@ class HiDPIAutoscaling:
                         for d in self.displays:
                             if d == display_name:
                                 display = d
-                                
+
                         dpi = self.get_display_dpi(display)
                         if dpi is None:
                             scale_factor = 1
@@ -999,12 +999,12 @@ class HiDPIAutoscaling:
                             scale_factor = 2
                         else:
                             scale_factor = 1
-                            
+
                         if self.scale_mode == 'hidpi' and revert == False:
                             scale_factor = scale_factor / 2
-                            
+
                         logical_resolution_x, logical_resolution_y = self.get_display_logical_resolution(display, scale_factor)
-                        
+
                         display_left = prev_right
                         display_top = prev_top
                         if display_left + logical_resolution_x > self.screen_maximum.x:
@@ -1013,18 +1013,18 @@ class HiDPIAutoscaling:
                             if display_top + logical_resolution_y > self.screen_maximum.y:
                                 log.info("Too many displays to position within X screen boundaries.")
                                 pass
-                        
+
                         display_positions[display_name] = (display_left, display_top)
-                        
+
                         prev_right = display_left + logical_resolution_x
                         prev_top = display_top
                         if prev_bottom < display_top + logical_resolution_y:
                             prev_bottom = display_top + logical_resolution_y
-        
+
         # Work around Mutter(?) bug where the X Screen (not output) resolution is set too small.
         if self.get_gpu_vendor() == 'intel':
             self.calculated_display_size = (prev_right, prev_bottom)
-        
+
         return display_positions
 
     def get_internal_lid_state(self):
@@ -1044,7 +1044,7 @@ class HiDPIAutoscaling:
                 return False
         except:
             return True
-    
+
     def panel_activation_override(self, display_name):
         try:
             if 'eDP' in display_name or self.displays[display_name]['connector_type'] == 'Panel':
@@ -1054,12 +1054,12 @@ class HiDPIAutoscaling:
         except:
             return False
         return False
-    
+
     def get_nvidia_settings_options(self, display_name, viewportin, viewportout):
         cmd = [ 'nvidia-settings', '-q', 'CurrentMetaMode' ]
         output = subprocess.check_output(cmd).decode("utf-8")
         deprettified_currentmetamode = re.sub(r'(\n )|(\n\n)', r'', output)
-        
+
         dpys = subprocess.check_output(['nvidia-settings', '-q', 'dpys'])
         reg = re.compile(r'\[([0-9])\] (?:.*?)\[dpy\:([.0-9])\] \((.*?)\)')
         tokens = reg.findall(str(dpys))
@@ -1083,7 +1083,7 @@ class HiDPIAutoscaling:
                 attributes = re.sub(r'{', r'{ViewPortIn=' + viewportin + ', ', attributes)
                 attributes = re.sub(r'}', r'ForceCompositionPipeline=On}, ', attributes)
                 attribute_mapping[connector_name] = attributes
-        
+
         # Create new attributes if we are activating a currently inactive display.
         # This fixes issues when plugging multiple displays in at the same time.
         if display_name not in attribute_mapping:
@@ -1091,7 +1091,7 @@ class HiDPIAutoscaling:
                         'ViewPortOut=' + viewportout + ', ' + \
                         'ForceCompositionPipeline=On}, '
             attribute_mapping[display_name] = attributes
-        
+
         return attribute_mapping[display_name]
 
 
@@ -1104,20 +1104,20 @@ class HiDPIAutoscaling:
         #{ViewPortIn=,ViewPortOut=
         #other attributes from matched display
         #ForceCompositionPipeline=On}
-        
+
         # Don't generate config for laptop display if the lid is closed.
         if self.panel_activation_override(display_name):
             return ''
-        
+
         dpi = self.get_display_dpi(display_name)
         if dpi is None:
             return ''
         display_str = display_name + ": nvidia-auto-select "
-        
+
         mode = self.displays[display_name]['modes'][0]
         res_out_x = mode['width']
         res_out_y = mode['height']
-        
+
         if scale_mode == 'lowdpi_prime':
             res_in_x = mode['width']
             res_in_y = mode['height']
@@ -1135,21 +1135,21 @@ class HiDPIAutoscaling:
             else:
                 res_in_x = mode['width']
                 res_in_y = mode['height']
-        
+
         if display_name in layout:
             pan_x, pan_y = layout[display_name]
         else:
             return ''
         panning_pos = "+" + str(pan_x) + "+" + str(pan_y)
-        
+
         viewportin = str(res_in_x) + "x" + str(res_in_y) + " "
         viewportout = str(res_out_x) + "x" + str(res_out_y) + panning_pos
-        
+
         display_str = display_str + "@" + str(res_in_x) + "x" + str(res_in_y) + " "
         display_str = display_str + "+" + str(pan_x) + "+" + str(pan_y) + " "
         display_str = display_str + self.get_nvidia_settings_options(display_name, viewportin, viewportout)
         return display_str
-        
+
     def set_display_scaling_xrandr(self, display_name, layout, force_lowdpi=True):
         native_dpi = self.get_display_dpi(display_name)
         saved_dpi = self.get_display_dpi(display_name, saved=True)
@@ -1157,16 +1157,16 @@ class HiDPIAutoscaling:
         if current_dpi is None:
             current_dpi = 0
         dpi = None
-        
+
         resources = self.xlib_window.xrandr_get_screen_resources()._data
         crtc = self.displays[display_name]['crtc']
         mode = None
-        
+
         try:
             crtc_info = randr.get_crtc_info(self.xlib_display, crtc, resources['config_timestamp'])._data
         except:
             return ''
-        
+
         # Get appropriate Mode and DPI
         if crtc != 0 and current_dpi <= 170 and force_lowdpi:
             # use current dpi and resolution
@@ -1203,7 +1203,7 @@ class HiDPIAutoscaling:
                     dpi = native_dpi
                 except:
                     return ''
-                    
+
         else:
             # use native resolution
             try:
@@ -1212,41 +1212,41 @@ class HiDPIAutoscaling:
                 dpi = native_dpi
             except:
                 return ''
-        
-        
+
+
         if dpi is None:
             return ''
-        
-        
+
+
         if force_lowdpi == True and dpi > 170:
             x_res = round(mode['width'] / 2)
             y_res = round(mode['height'] / 2)
         else:
             x_res = mode['width']
             y_res = mode['height']
-            
+
         if display_name in layout:
             pan_x, pan_y = layout[display_name]
         else:
             return ''
-        
+
         #now find the mode we want
         new_mode = None
         for mode in self.displays[display_name]['modes']:
             if mode['width'] == x_res and mode['height'] == y_res:
                 new_mode = mode
                 break
-        
+
         if self.panel_activation_override(display_name):
             return ''
-        
+
         try:
             randr.set_crtc_config(self.xlib_display,crtc, int(time.time()), int(pan_x), int(pan_y), new_mode['id'], crtc_info['rotation'], crtc_info['outputs'])
         except:
             log.info("Could not set CRTC for " + str(display_name))
-        
+
         return ''
-    
+
     def set_display_scaling(self, display, layout, force=False, lowdpi_prime=False):
         if self.displays[display]['modes'] == []:
             return ''
@@ -1262,8 +1262,8 @@ class HiDPIAutoscaling:
                 return self.set_display_scaling_nvidia_settings(display, layout, scale_mode=mode)
         elif self.get_gpu_vendor() == 'intel':
             return self.set_display_scaling_xrandr(display, layout, force_lowdpi=force)
-    
-    
+
+
     def has_prime_displays(self):
         found_hidpi = False
         found_lowdpi = False
@@ -1279,7 +1279,7 @@ class HiDPIAutoscaling:
                 elif 'prime' in self.displays[display]:
                     found_lowdpi = True
         return found_lowdpi, found_hidpi
-    
+
     def has_mixed_hi_low_dpi_displays(self):
         found_hidpi = False
         found_lowdpi = False
@@ -1295,32 +1295,32 @@ class HiDPIAutoscaling:
                     found_hidpi = True
                 else:
                     found_lowdpi = True
-        
+
         if found_hidpi == True and found_lowdpi == True:
             has_mixed_dpi = True
-        
+
         return has_mixed_dpi, found_hidpi, found_lowdpi
-    
+
     def set_scaled_display_modes(self, notification=True):
         # Don't set resolutions at all if disabled to prevent issues.
         if self.settings.get_boolean('enable') == False:
             return
-        
+
         has_mixed_dpi, has_hidpi, has_lowdpi = self.has_mixed_hi_low_dpi_displays()
         has_lowdpi_prime, has_hidpi_prime = self.has_prime_displays()
-        
+
         if has_hidpi_prime and has_lowdpi and self.scale_mode == 'hidpi':
             self.workaround_show_prime_set_primary_dialog()
-        
+
         self.displays_xml = self.get_displays_xml()
         layout = self.calculate_layout2(revert=self.unforce)
-        
+
         # INTEL: match display scales unless user selects 'native resolution'
         if not self.unforce:
             force = has_hidpi
         else:
             force = False
-        
+
         # For each connected display, configure display modes.
         cmd = ''
         off_displays = []
@@ -1348,8 +1348,8 @@ class HiDPIAutoscaling:
             if has_hidpi:
                 # First set scale mode manually since Mutter can't see the effective display resolution.
                 # Step 1) Let's try setting scale.  If this works, we can skip the later steps (less flickering).
-                # Step 2) That didn't work.  We'll need to set everything up at the native resolution for Mutter 
-                #         to accept the display configuration.  Calculate a layout and nvidia-settings cmd at 
+                # Step 2) That didn't work.  We'll need to set everything up at the native resolution for Mutter
+                #         to accept the display configuration.  Calculate a layout and nvidia-settings cmd at
                 #         native resolution and set it momentarily.
                 # Step 3) Try setting the scale with displays at native resolution.  This should almost always work.
                 if self.scale_mode == 'lowdpi':
@@ -1389,7 +1389,7 @@ class HiDPIAutoscaling:
                     if self.displays[display]['connected'] == True and 'prime' in self.displays[display]:
                         self.set_display_scaling(display, layout, force=force)
                 # Now call nvidia settings with the metamodes we calculated in set_display_scaling()
-                if cmd is not "":
+                if cmd != "":
                     subprocess.call('nvidia-settings --assign CurrentMetaMode="' + cmd + '"', shell=True)
                 if self.scale_mode == 'lowdpi' and dbusutil.get_scale() > 1.0:
                     try:
@@ -1431,7 +1431,7 @@ class HiDPIAutoscaling:
                                 dbusutil.set_scale(2)
                             except:
                                 log.info("Could not set Mutter scale external hidpi")
-        
+
         # Work around Mutter(?) bug where the X Screen (not output) resolution is set too small.
         # Because of this, sometimes some displays may be rendered partially or completely black.
         # Calling 'xrandr --auto' causes the correct screen size to be set without other notable changes.
@@ -1458,16 +1458,16 @@ class HiDPIAutoscaling:
                                 log.info("Could not set Mutter scale for workaround.")
                 else:
                     subprocess.call('xrandr --output eDP-1 --off', shell=True)
-            
+
             # Setting the other displays' modes with xlib will also activate previously disabled displays.
             # We need to turn them off manually.  Using xrandr since I haven't found a better method.
             for off_display in off_displays:
                 subprocess.call(['xrandr', '--output', off_display, '--off'])
-        
+
         # Displays are all setup - Notify the user!
         self.prev_display_types = (has_mixed_dpi, has_hidpi, has_lowdpi)
         self.notification_send_signal()
-    
+
     def update(self, e):
         time.sleep(.1)
         if self.update_display_connections():
@@ -1485,7 +1485,7 @@ class HiDPIAutoscaling:
             elif has_mixed_dpi and not self.prev_display_types[0]:
                 self.unforce = False
                 self.settings.set_string('mode', 'lodpi')
-            
+
             # Work around bug where display event triggers update with bad data, destroying layout
             if self.get_gpu_vendor() == 'nvidia':
                 time.sleep(0.1)
@@ -1495,25 +1495,25 @@ class HiDPIAutoscaling:
                 if self.workaround_prime_detect_lowdpi_primary():
                     self.scale_mode = 'lowdpi'
                     self.settings.set_string('mode', 'lodpi')
-            
+
             if self.settings.get_boolean('enable') == False:
                 return False
-            
+
             # Don't override user configuration when only lodpi displays are connected.
             # This appears to be safe for now.
             if not has_hidpi:
                 return False
-            
+
             self.set_scaled_display_modes()
         return False
-    
+
     def run(self):
         thread = threading.Thread(target = self.notification_register_dbus, args=(None, self.unforce), daemon=True)
         thread.start()
-        
+
         thread = threading.Thread(target = self.acpid_listen)
         thread.start()
-        
+
         #fix cassidy bug
         self.update_display_connections()
         # First set appropriate initial display configuration
@@ -1534,19 +1534,19 @@ class HiDPIAutoscaling:
             self.unforce = False
             self.settings.set_string('mode', 'lodpi')
             self.set_scaled_display_modes()
-        
+
         # calling update fixes overlap bug on first mode set.
         if self.get_gpu_vendor() == 'intel':
             self.update(None)
-        
+
         running = True
         prev_timestamp = 0
         #mapping_notify_sequence = 0
-        
-        # Disabling displays is a bit precarious on NVIDIA right now.  
-        # We want the user to be able to turn displays off,  but doing so is only safe in lowdpi mode.  
-        # When in connecting an external lowdpi monitor in HiDPI mode, Mutter turns it off.  
-        # 1) Poll instead of relying on events.  
+
+        # Disabling displays is a bit precarious on NVIDIA right now.
+        # We want the user to be able to turn displays off,  but doing so is only safe in lowdpi mode.
+        # When in connecting an external lowdpi monitor in HiDPI mode, Mutter turns it off.
+        # 1) Poll instead of relying on events.
         #    a) Autoset only when a monitor has been physically connected or disconnected.
         #    b) Ignore manual config changes.  Let gnome-control-center and the projector toggle do their thing.
         # 2) Switch to lowdpi when we detect a lowdpi external monitor via polling
@@ -1570,7 +1570,7 @@ class HiDPIAutoscaling:
                     #   self.update(e)
                 else:
                     if (e.type + e.sub_code) == self.xlib_display.extension_event.OutputPropertyNotify:
-                            # MUST set e to correct type from binary data.  Otherwise 
+                            # MUST set e to correct type from binary data.  Otherwise
                             # we'll have wrong contents, including nonsense timestamp.
                             e = randr.OutputPropertyNotify(display=self.xlib_display.display, binarydata = e._binary)
                 # Multiple events are fired in quick succession, only act once.
@@ -1581,7 +1581,7 @@ class HiDPIAutoscaling:
                 if new_timestamp > prev_timestamp:
                     prev_timestamp = new_timestamp
                     self.update(e)
-            
+
 
 
 def _run_hidpi_autoscaling(model):
@@ -1600,7 +1600,7 @@ def _run_hidpi_autoscaling(model):
             #subprocess.call('xrandr --addmode eDP-1 1600x900', shell=True)
         except:
             log.warning("Failed to add xrandr mode to display.")
-    
+
     hidpi = HiDPIAutoscaling(model)
     hidpi.run()
 
@@ -1611,5 +1611,3 @@ def run_hidpi_autoscaling(model):
         return _run_hidpi_autoscaling(model)
     except Exception:
         log.exception('Error calling _run_hidpi_autoscaling(%r):', model)
-
-
