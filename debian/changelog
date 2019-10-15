@@ -1,6 +1,7 @@
 hidpi-daemon (18.04.5~~alpha) bionic; urgency=low
 
   * Daily WIP for 18.04.5
+  * Fix compilation on eoan
 
  -- Jeremy Soller <jeremy@system76.com>  Tue, 15 Oct 2019 11:24:15 -0600
 
