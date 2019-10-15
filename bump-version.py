@@ -95,7 +95,9 @@ def bump_version(current):
 
 
 def build_author_line():
-    author = check_output(['bzr', 'whoami']).decode().strip()
+    user = check_output(['git', 'config', '--get', 'user.name']).decode().strip()
+    email = check_output(['git', 'config', '--get', 'user.email']).decode().strip()
+    author = ' '.join((user, '<' + email + '>'))
     ts = time.strftime('%a, %d %b %Y %H:%M:%S %z', time.localtime())
     return ' -- {}  {}\n'.format(author, ts)
 
@@ -150,18 +152,6 @@ with open(CHANGELOG, 'w') as fp:
     fp.writelines(new_changelog_lines + changelog_lines)
 with open(INIT, 'w') as fp:
     fp.writelines(new_init_lines)
-
-# Make sure tests pass in-tree:
-check_call([SETUP, 'test'])
-
-# Make sure package builds okay locally using pbuilder-dist:
-dsc_name = 'hidpi-daemon_{}.dsc'.format(newdeb)
-check_call(['pbuilder-dist', distro, 'update'])
-tmp = TempDir()
-os.mkdir(tmp.join('result'))
-check_call(['dpkg-source', '-b', TREE], cwd=tmp.join('result'))
-check_call(['pbuilder-dist', distro, 'build', tmp.join('result', dsc_name)])
-del tmp
 
 # Confirm before we make the commit:
 print('-' * 80)
