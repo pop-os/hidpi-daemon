@@ -1,3 +1,9 @@
+hidpi-daemon (18.04.5~~alpha) bionic; urgency=low
+
+  * Daily WIP for 18.04.5
+
+ -- Jeremy Soller <jeremy@system76.com>  Tue, 15 Oct 2019 11:24:15 -0600
+
 hidpi-daemon (18.04.4) bionic; urgency=low
 
   * Fix layout regression on intel systems
