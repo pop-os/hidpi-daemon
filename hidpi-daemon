@@ -30,9 +30,9 @@ import os
 import sys
 import logging
 
+gi.require_version('Gtk', '3.0')
+
 from gi.repository import GLib
-
-
 from gi.repository import GObject
 
 import hidpidaemon
