@@ -4,13 +4,14 @@ Priority: optional
 Maintainer: David Jordan <david2@system76.com>
 Build-Depends: debhelper (>= 9), 
     dh-python, 
+    dh-systemd,
     python3-all,
     pyflakes3,
     python3-gi,
     python3-pydbus,
     python3-xlib,
     gir1.2-notify-0.7
-Standards-Version: 3.9.8
+Standards-Version: 4.5.0
 X-Python3-Version: >= 3.4
 Homepage: https://github.com/pop-os/hidpi-daemon
 
