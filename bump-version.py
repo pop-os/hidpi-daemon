@@ -34,7 +34,7 @@ from hidpidaemon import __version__
 from hidpidaemon.tests.helpers import TempDir
 
 
-DISTROS = ('trusty', 'xenial', 'yakkety', 'zesty', 'artful', 'bionic')
+DISTROS = ('trusty', 'xenial', 'yakkety', 'zesty', 'artful', 'bionic', 'cosmic', 'disco', 'eoan', 'focal')
 ALPHA = '~~alpha'
 
 TREE = path.dirname(path.abspath(__file__))
