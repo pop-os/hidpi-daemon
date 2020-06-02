@@ -1,7 +1,7 @@
 Source: hidpi-daemon
 Section: x11
 Priority: optional
-Maintainer: David Jordan <david2@system76.com>
+Maintainer: Aaron Honeycutt <aaron@system76.com>
 Build-Depends: debhelper (>= 9), 
     dh-python, 
     dh-systemd,
