@@ -31,6 +31,8 @@ import logging
 import time
 import os
 
+gi.require_version('Gtk', '3.0')
+
 from gi.repository import Gio, GObject, GLib, Gtk
 from pydbus import SessionBus
 from pydbus.publication import Publication
@@ -49,6 +51,8 @@ from hidpidaemon import monitorsxml
 log = logging.getLogger(__name__)
 
 NEEDS_HIDPI_AUTOSCALING = (
+    'addw1',
+    'addw2',
     'bonw12',
     'galp2',
     'galp3',
@@ -56,13 +60,17 @@ NEEDS_HIDPI_AUTOSCALING = (
     'oryp3-ess',
     'oryp3',
     'serw10',
+    'serw11'
 )
 
 NVIDIA = {
+    'addw1',
+    'addw2',
     'bonw12',
     'oryp2-ess',
     'oryp3-ess',
     'serw10',
+    'serw11'
 }
 
 INTEL = {
