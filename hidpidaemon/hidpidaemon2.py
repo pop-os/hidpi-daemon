@@ -30,6 +30,7 @@ from Xlib.ext import randr
 import logging
 import time
 import os
+import gi
 
 gi.require_version('Gtk', '3.0')
 
