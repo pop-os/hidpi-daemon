@@ -1,11 +1,10 @@
-hidpi-daemon (18.04.6~~alpha) bionic; urgency=low
+hidpi-daemon (18.04.6) bionic; urgency=low
 
-  * Daily WIP for 18.04.6
   * Update hidpidaemon2.py file to set gi require version
   * Add newer models with HiDPI displays
   * Update Maintainer
 
- -- Jeremy Soller <jeremy@system76.com>  Thu, 13 Feb 2020 13:14:42 -0700
+ -- Jeremy Soller <jeremy@system76.com>  Tue, 14 Jul 2020 08:49:58 -0600
 
 hidpi-daemon (18.04.5) bionic; urgency=low
 
