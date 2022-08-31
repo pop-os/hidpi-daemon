@@ -4,7 +4,7 @@ This program is for maanging HiDPI and LoDPI monitors on X. This program is inst
 
 ## Building
 
-### Installing depends
+### Installing dependencies
 
 `sudo apt install debhelper dh-python python3-all pyflakes3 python3-gi python3-pydbus python3-xlib gir1.2-notify-0.7`
 
