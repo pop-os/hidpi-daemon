@@ -12,6 +12,12 @@ This program is for maanging HiDPI and LoDPI monitors on X. This program is inst
 
 `sudo dpkg-buildpackage -us uc`
 
+## Removing
+
+This program can be removed with this command:
+
+`sudo apt remove hidpi-daemon`
+
 ## Making changes
 
 1. Checkout new branch
