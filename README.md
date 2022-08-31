@@ -1,6 +1,6 @@
 # HiDPI Daemon
 
-This program is for maanging HiDPI and LoDPI monitors on X.
+This program is for maanging HiDPI and LoDPI monitors on X. This program is installed by default in Pop!\_OS and Ubuntu (if installed by System76 and can be added with [this article](https://support.system76.com/articles/system76-software)). 
 
 ## Building
 
