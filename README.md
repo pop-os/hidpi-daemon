@@ -1,0 +1,20 @@
+# HiDPI Daemon
+
+This program is for maanging HiDPI and LoDPI monitors on X.
+
+## Making changes
+
+1. Checkout new branch
+2. Push new branch
+3. Bump the version (`./bump-version.py`)
+4. Make changes
+5. Make pull request
+6. Get PR approved and merged
+7. Make a release from master branch (`./make-release.py`)
+
+## License
+
+This software is made available under the terms of the GNU General Public
+License; either version 2 of the License, or (at your option) any later
+version. See [LICENSE](LICENSE) for details.
+
