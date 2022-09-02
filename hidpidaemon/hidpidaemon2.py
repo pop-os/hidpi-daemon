@@ -191,14 +191,24 @@ class HiDPIAutoscaling:
 
         self.displays_xml = self.get_displays_xml()
 
-    #Test for nvidia proprietary driver and nvidia-settings
+    # Check which GPU is used for rendering the desktop
     def get_gpu_vendor(self):
         if self.model in INTEL:
             return 'intel'
-        modules = open('/proc/modules', 'r')
-        if 'nvidia ' in modules.read() and which('nvidia-settings') is not None:
-            return 'nvidia'
-        else:
+
+        # Check for system76-power/gpu-manager written file first
+        try:
+            with open('/etc/prime-discrete') as mode:
+                if mode.read().strip() == 'on':
+                    return 'nvidia'
+                return 'intel'
+        except:
+            pass
+
+        # Fall back to checking loaded modules
+        with open('/proc/modules', 'r') as modules:
+            if 'nvidia ' in modules.read() and which('nvidia-settings') is not None:
+                return 'nvidia'
             return 'intel'
 
     def add_output_mode(self):
@@ -1046,10 +1056,9 @@ class HiDPIAutoscaling:
                     return True # No lids found: System may not be a laptop.
                 else:
                     lid_file_path = os.path.join('/', 'proc', 'acpi', 'button', 'lid', lid_dirs[0], 'state')
-            lid_file = open(lid_file_path, 'r')
-            if 'open' in lid_file.read():
-                return True
-            else:
+            with open(lid_file_path, 'r') as lid_file:
+                if 'open' in lid_file.read():
+                    return True
                 return False
         except:
             return True
