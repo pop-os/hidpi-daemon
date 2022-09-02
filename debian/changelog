@@ -1,6 +1,7 @@
 hidpi-daemon (18.04.7~~alpha) bionic; urgency=low
 
   * Daily WIP for 18.04.7
+  * Fixed running in hybrid graphics mode
 
  -- Tim Crawford <tcrawford@system76.com>  Fri, 02 Sep 2022 10:26:20 -0600
 

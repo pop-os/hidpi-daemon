@@ -191,10 +191,21 @@ class HiDPIAutoscaling:
 
         self.displays_xml = self.get_displays_xml()
 
-    #Test for nvidia proprietary driver and nvidia-settings
+    # Check which GPU is used for rendering the desktop
     def get_gpu_vendor(self):
         if self.model in INTEL:
             return 'intel'
+
+        # Check for system76-power/gpu-manager written file first
+        try:
+            with open('/etc/prime-discrete') as mode:
+                if mode.read().strip() == 'on':
+                    return 'nvidia'
+                return 'intel'
+        except:
+            pass
+
+        # Fall back to checking loaded modules
         with open('/proc/modules', 'r') as modules:
             if 'nvidia ' in modules.read() and which('nvidia-settings') is not None:
                 return 'nvidia'
