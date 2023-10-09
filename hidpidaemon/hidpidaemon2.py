@@ -1038,14 +1038,15 @@ class HiDPIAutoscaling:
 
     def get_internal_lid_state(self):
         try:
-            lid_file_path = '/proc/acpi/button/lid/LID0/state'
-            if os.path.isfile(lid_file_path):
-                lids_path = '/proc/acpi/button/lid/'
-                lid_dirs = [d for d in os.listdir(lids_path) if os.path.isdir(os.path.join(lids_path, d))]
+            lids_path = '/proc/acpi/button/lid/'
+            lid_file_path = os.path.join(lids_path, 'LID0', 'state')
+            if not os.path.isfile(lid_file_path):
+                # Default LID0 not found. Look for another subdirectory with a state file.
+                lid_dirs = [d for d in os.listdir(lids_path) if os.path.isfile(os.path.join(lids_path, d, 'state'))]
                 if len(lid_dirs) < 1:
                     return True # No lids found: System may not be a laptop.
                 else:
-                    lid_file_path = os.path.join('/', 'proc', 'acpi', 'button', 'lid', lid_dirs[0], 'state')
+                    lid_file_path = os.path.join(lids_path, lid_dirs[0], 'state')
             lid_file = open(lid_file_path, 'r')
             if 'open' in lid_file.read():
                 return True
