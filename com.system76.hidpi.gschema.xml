@@ -8,7 +8,7 @@
     <schema path="/com/system76/hidpi/" id="com.system76.hidpi">
         
         <key name='enable' type='b'>
-            <default>true</default>
+            <default>false</default>
             <summary>Enable HiDPI daemon</summary>
             <description>
                 Allow HiDPI daemon to run.
