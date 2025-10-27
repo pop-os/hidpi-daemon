@@ -8,6 +8,7 @@ Build-Depends: debhelper (>= 9.20160709),
     pyflakes3,
     python3-gi,
     python3-pydbus,
+    python3-setuptools,
     python3-xlib,
     gir1.2-notify-0.7
 Standards-Version: 4.5.0
